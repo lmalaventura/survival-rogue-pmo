@@ -1,0 +1,13 @@
+target/
+*.class
+*.log
+
+.mvn/wrapper/dists/
+
+.vscode/
+.settings/
+.classpath
+.project
+
+hs_err_pid*
+replay_pid*
