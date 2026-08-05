@@ -16,9 +16,16 @@ public final class GameWorld {
             throw new IllegalArgumentException("Height must be finite and greater than zero");
         }
 
+        Player validatedPlayer = Objects.requireNonNull(player, "Player must not be null");
+        Position initialPosition = validatedPlayer.getPosition();
+        if (initialPosition.x() < 0.0 || initialPosition.x() > width
+                || initialPosition.y() < 0.0 || initialPosition.y() > height) {
+            throw new IllegalArgumentException("Player position must be within world bounds");
+        }
+
         this.width = width;
         this.height = height;
-        this.player = Objects.requireNonNull(player, "Player must not be null");
+        this.player = validatedPlayer;
     }
 
     public double getWidth() {
@@ -31,5 +38,17 @@ public final class GameWorld {
 
     public Player getPlayer() {
         return player;
+    }
+
+    public void movePlayerBy(double deltaX, double deltaY) {
+        if (!Double.isFinite(deltaX) || !Double.isFinite(deltaY)) {
+            throw new IllegalArgumentException("Movement deltas must be finite");
+        }
+
+        Position currentPosition = player.getPosition();
+        double newX = Math.max(0.0, Math.min(width, currentPosition.x() + deltaX));
+        double newY = Math.max(0.0, Math.min(height, currentPosition.y() + deltaY));
+
+        player.moveTo(new Position(newX, newY));
     }
 }
