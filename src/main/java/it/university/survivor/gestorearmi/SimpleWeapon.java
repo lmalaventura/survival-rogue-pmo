@@ -1,61 +1,99 @@
+package it.university.survivor.gestorearmi;
+
 import java.util.Collection;
-import java.util.Comparator;
+import java.util.Objects;
 import java.util.Optional;
+
+import it.university.survivor.model.Position;
 
 public class SimpleWeapon {
     
     private final double cooldownSeconds;
-    private final double damage;
+    private final int damage;
     private final double projectileSpeed;
     
     private double currentCooldown;
 
-    public SimpleWeapon(double cooldownSeconds, double damage, double projectileSpeed) {
+    public SimpleWeapon(double cooldownSeconds, int damage, double projectileSpeed) {
+        if (!Double.isFinite(cooldownSeconds) || cooldownSeconds <= 0) {
+            throw new IllegalArgumentException("Il cooldown deve essere finito e maggiore di zero.");
+        }
+        if (damage <= 0) {
+            throw new IllegalArgumentException("Il danno deve essere maggiore di zero.");
+        }
+        if (!Double.isFinite(projectileSpeed) || projectileSpeed <= 0) {
+            throw new IllegalArgumentException("La velocità del proiettile deve essere finita e maggiore di zero.");
+        }
+        
         this.cooldownSeconds = cooldownSeconds;
         this.damage = damage;
         this.projectileSpeed = projectileSpeed;
-        this.currentCooldown = 0.0; // appena creata è pronta a sparare
+        this.currentCooldown = 0.0;
     }
 
-    
     public Optional<ProjectileSpawnRequest> update(double deltaTimeSeconds, Position playerPosition, Collection<? extends Targetable> targets) {
-        // 1. Timer update
+        // 1. Validazione input ad ogni frame
+        if (!Double.isFinite(deltaTimeSeconds) || deltaTimeSeconds < 0) {
+            throw new IllegalArgumentException("Il delta time deve essere finito e >= 0.");
+        }
+        Objects.requireNonNull(playerPosition, "La posizione del giocatore non può essere null.");
+        Objects.requireNonNull(targets, "La lista dei bersagli non può essere null.");
+
+        // 2. Aggiornamento timer
         if (currentCooldown > 0) {
             currentCooldown -= deltaTimeSeconds;
         }
 
-        // 2. Verifica se l'arma è pronta a sparare
+        // 3. Ritorno anticipato se in cooldown
         if (currentCooldown > 0) {
             return Optional.empty();
         }
 
-        // 3. Trova il bersaglio più vicino (Logica di Targeting)
-        Optional<? extends Targetable> nearestTarget = findNearestTarget(playerPosition, targets);
+        // 4. Selezione bersaglio più vicino
+        Targetable nearestTarget = null;
+        double minDistance = Double.MAX_VALUE;
 
-        // 4. Se c'è un bersaglio, genera il proiettile e resetta il cooldown
-        if (nearestTarget.isPresent()) {
-            currentCooldown = cooldownSeconds;
+        for (Targetable target : targets) {
+            // Ignoriamo target nulli passati per errore
+            if (target == null || target.getPosition() == null) {
+                continue;
+            }
             
-            ProjectileSpawnRequest request = new ProjectileSpawnRequest(
-                playerPosition,
-                nearestTarget.get().getPosition(),
-                damage,
-                projectileSpeed
-            );
-            
-            return Optional.of(request);
+            double dist = getDistance(playerPosition, target.getPosition());
+            if (dist < minDistance) {
+                minDistance = dist;
+                nearestTarget = target;
+            }
         }
 
-        // Nessun bersaglio valido, non spara e non resetta il cooldown
+        // 5. Generazione richiesta se abbiamo un bersaglio valido
+        if (nearestTarget != null) {
+            currentCooldown = cooldownSeconds;
+            
+            // Calcolo direzione normalizzata
+            double dx = nearestTarget.getPosition().x() - playerPosition.x();
+            double dy = nearestTarget.getPosition().y() - playerPosition.y();
+            
+            double dirX = 0.0;
+            double dirY = 0.0;
+            
+            // Gestione del caso limite: target sovrapposto al player (distanza 0)
+            if (minDistance < 1e-6) {
+                dirX = 1.0; // Direzione arbitraria di default (es. a destra)
+            } else {
+                dirX = dx / minDistance;
+                dirY = dy / minDistance;
+            }
+            
+            return Optional.of(new ProjectileSpawnRequest(
+                playerPosition, dirX, dirY, damage, projectileSpeed
+            ));
+        }
+
         return Optional.empty();
     }
 
-    private Optional<? extends Targetable> findNearestTarget(Position origin, Collection<? extends Targetable> targets) {
-        if (targets == null || targets.isEmpty()) {
-            return Optional.empty();
-        }
-
-        return targets.stream()
-            .min(Comparator.comparingDouble(t -> origin.distanceTo(t.getPosition())));
+    private double getDistance(Position p1, Position p2) {
+        return Math.hypot(p1.x() - p2.x(), p1.y() - p2.y());
     }
 }

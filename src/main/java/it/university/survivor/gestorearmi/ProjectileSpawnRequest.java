@@ -1,6 +1,11 @@
+package it.university.survivor.gestorearmi;
+
+import it.university.survivor.model.Position;
+
 public record ProjectileSpawnRequest(
     Position origin, 
-    Position targetPosition, 
-    double damage, 
+    double directionX, 
+    double directionY, 
+    int damage, 
     double speed
 ) {}
