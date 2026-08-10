@@ -1,6 +1,6 @@
 package it.university.survivor.model;
 
-import it.university.survivor.model.enemy.Enemy;
+import it.university.survivor.model.Enemy;
 import it.university.survivor.model.enemy.EnemySpawner;
 import org.junit.jupiter.api.Test;
 
