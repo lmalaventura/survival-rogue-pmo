@@ -1,5 +1,6 @@
 package it.university.survivor.model.enemy;
 
+import it.university.survivor.model.Enemy;
 import java.util.List;
 import java.util.Objects;
 
@@ -10,8 +11,8 @@ public final class Wave {
     public Wave(List<Enemy> enemies) {
         Objects.requireNonNull(enemies, "Enemies must not be null");
 
-        if (enemies.size() != 3) {
-            throw new IllegalArgumentException("A wave must contain exactly 3 enemies");
+        if (enemies.isEmpty()) {
+            throw new IllegalArgumentException("A wave must contain at least one enemy");
         }
 
         this.enemies = List.copyOf(enemies);

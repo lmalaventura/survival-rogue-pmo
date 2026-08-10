@@ -1,6 +1,6 @@
 package it.university.survivor.model;
 
-import it.university.survivor.model.enemy.Enemy;
+import it.university.survivor.model.Enemy;
 import it.university.survivor.model.enemy.Wave;
 import org.junit.jupiter.api.Test;
 
@@ -19,14 +19,32 @@ class WaveTest {
     }
 
     @Test
-    void waveShouldContainExactlyThreeEnemies() {
+    void waveShouldRejectNullEnemyList() {
+        assertThrows(NullPointerException.class, () -> new Wave(null));
+    }
+
+    @Test
+    void waveShouldRejectEmptyEnemyList() {
+        assertThrows(IllegalArgumentException.class, () -> new Wave(List.of()));
+    }
+
+    @Test
+    void waveShouldAcceptOneEnemy() {
+        Wave wave = new Wave(List.of(createEnemy()));
+
+        assertEquals(1, wave.getEnemies().size());
+    }
+
+    @Test
+    void waveShouldAcceptMoreThanThreeEnemies() {
         Wave wave = new Wave(List.of(
-                createEnemy(),
-                createEnemy(),
-                createEnemy()
+            createEnemy(),
+            createEnemy(),
+            createEnemy(),
+            createEnemy()
         ));
 
-        assertEquals(3, wave.getEnemies().size());
+        assertEquals(4, wave.getEnemies().size());
     }
 
     @Test
