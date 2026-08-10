@@ -1,5 +1,6 @@
 package it.university.survivor.model.enemy;
 
+import it.university.survivor.model.Enemy;
 import it.university.survivor.model.Position;
 
 import java.util.ArrayList;
