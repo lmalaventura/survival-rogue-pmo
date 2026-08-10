@@ -3,22 +3,15 @@ package it.university.survivor;
 import it.university.survivor.controller.GameController;
 import it.university.survivor.controller.MovementDirection;
 import it.university.survivor.model.GameWorld;
-import it.university.survivor.model.Item;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
-import it.university.survivor.model.Rarity;
-import it.university.survivor.model.StatModifier;
-import it.university.survivor.model.StatType;
 import it.university.survivor.view.GameView;
-import it.university.survivor.view.UpgradeView;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
 import java.util.EnumSet;
-import java.util.List;
 
 public class App extends Application {
 
@@ -41,45 +34,17 @@ public class App extends Application {
         GameController controller = new GameController(world);
         gameLoop = new GameLoop(world, controller, view);
 
-        StatModifier healthMod = new StatModifier(StatType.MAX_HEALTH, 20.0);
-
-
-        List<Item> testOptions = List.of(
-            new Item("Cuore di pietra", Rarity.COMMON, healthMod),
-            new Item("Elisir Vitalizzante", Rarity.RARE, healthMod),
-            new Item("Benedizione dei Titani", Rarity.EPIC, healthMod)
-        );
-
-        UpgradeView upgradeView = new UpgradeView(testOptions, selectedItem -> {
-            System.out.println("[TEST UPGRADE] Selezionato: " + selectedItem.name() + " (+ " + selectedItem.getEffectiveValue() + " " 
-                                + selectedItem.baseModifier().statType() + ")");
-        });
-
-       StackPane root = new StackPane();
-       root.getChildren().addAll(view.getRoot(), upgradeView);
-
-
-        Scene scene = new Scene(root, ARENA_WIDTH, ARENA_HEIGHT);
+        Scene scene = new Scene(view.getRoot(), ARENA_WIDTH, ARENA_HEIGHT);
         EnumSet<KeyCode> pressedKeys = EnumSet.noneOf(KeyCode.class);
 
         scene.setOnKeyPressed(event -> {
-
-            if(event.getCode() == KeyCode.U) {
-                upgradeView.setVisible(!upgradeView.isVisible());
-            }
-
-
             pressedKeys.add(event.getCode());
             updateLogicalDirections(controller, pressedKeys);
         });
-
-
         scene.setOnKeyReleased(event -> {
             pressedKeys.remove(event.getCode());
             updateLogicalDirections(controller, pressedKeys);
         });
-
-
         primaryStage.focusedProperty().addListener((observable, wasFocused, isFocused) -> {
             if (!isFocused) {
                 pressedKeys.clear();
