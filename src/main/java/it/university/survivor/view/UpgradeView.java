@@ -2,7 +2,7 @@ package it.university.survivor.view;
 
 
 import it.university.survivor.model.Item;
-import it.university.survivor.model.UpgradeSelectionHandler;
+import it.university.survivor.model.ModifierType;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -39,14 +39,19 @@ public final class UpgradeView extends VBox {
 
 
         for(Item item : options) {
-            String label = String.format("%s [%s] (+%.0f %s)",
+            String valueStr = item.baseModifier().modifierType() == ModifierType.PERCENTAGE
+                    ? String.format("%+.0f%%", item.getEffectiveValue() * 100)
+                    : String.format("%+.0f", item.getEffectiveValue());
+
+
+            String label = String.format("%s [%s] (%s %s)",
                 item.name(),
                 item.rarity(),
-                item.getEffectiveValue(),
+                valueStr,
                 item.baseModifier().statType());
 
             Button button = new Button(label);
-            button.setMinWidth(280);
+            button.setMinWidth(300);
             button.setMinHeight(45);
             button.setStyle("-fx-font-size: 14px; -fx-cursor: hand;");
 
