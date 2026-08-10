@@ -1,4 +1,4 @@
-package it.university.survivor.model.enemy;
+package it.university.survivor.model;
 
 import it.university.survivor.model.Health;
 import it.university.survivor.model.Position;
@@ -22,6 +22,10 @@ public class Enemy {
 
         this.health = new Health(maxHealth);
         this.movementSpeed = movementSpeed;
+        }
+        void moveTo(Position newPosition) {
+            this.position = Objects.requireNonNull(newPosition, "Position must not be null");
+
     }
 
     public Position getPosition() {
