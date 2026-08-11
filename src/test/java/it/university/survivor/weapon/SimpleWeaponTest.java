@@ -1,4 +1,4 @@
-package it.university.survivor.gestorearmi;
+package it.university.survivor.weapon;
 
 import java.util.Arrays;
 import java.util.Collections;
