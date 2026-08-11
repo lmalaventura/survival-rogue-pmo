@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
 
+import it.university.survivor.model.Enemy;
 import it.university.survivor.model.Position;
 
 public class SimpleWeapon {
@@ -31,7 +32,7 @@ public class SimpleWeapon {
         this.currentCooldown = 0.0;
     }
 
-    public Optional<ProjectileSpawnRequest> update(double deltaTimeSeconds, Position playerPosition, Collection<? extends Targetable> targets) {
+    public Optional<ProjectileSpawnRequest> update(double deltaTimeSeconds, Position playerPosition, Collection<? extends Enemy> targets) {
         // 1. Validazione input ad ogni frame
         if (!Double.isFinite(deltaTimeSeconds) || deltaTimeSeconds < 0) {
             throw new IllegalArgumentException("Il delta time deve essere finito e >= 0.");
@@ -50,12 +51,12 @@ public class SimpleWeapon {
         }
 
         // 4. Selezione bersaglio più vicino
-        Targetable nearestTarget = null;
+        Enemy nearestTarget = null;
         double minDistance = Double.MAX_VALUE;
 
-        for (Targetable target : targets) {
+        for (Enemy target : targets) {
             // Ignoriamo target nulli passati per errore
-            if (target == null || target.getPosition() == null) {
+            if (target == null || target.isDead()|| target.getPosition() == null) {
                 continue;
             }
             

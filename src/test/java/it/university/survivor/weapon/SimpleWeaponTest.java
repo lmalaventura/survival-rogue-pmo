@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import it.university.survivor.model.Enemy;
 import it.university.survivor.model.Position;
 
 class SimpleWeaponTest {
@@ -20,8 +21,7 @@ class SimpleWeaponTest {
     private Position playerPos;
 
     // Record dummy per simulare i nemici nei test
-    private record DummyEnemy(Position getPosition) implements Targetable {}
-
+    
     @BeforeEach
     void setUp() {
         // Cooldown: 1.0s, Danno: 10, Velocità: 5.0
@@ -41,7 +41,7 @@ class SimpleWeaponTest {
 
     @Test
     void shouldThrowOnInvalidUpdateArguments() {
-        List<Targetable> targets = Collections.emptyList();
+        List<Enemy> targets = Collections.emptyList();
         
         assertThrows(IllegalArgumentException.class, () -> weapon.update(-0.1, playerPos, targets));
         assertThrows(NullPointerException.class, () -> weapon.update(0.1, null, targets));
@@ -50,10 +50,10 @@ class SimpleWeaponTest {
 
     @Test
     void shouldTargetNearestEnemyAndNormalizeDirection() {
-        Targetable near = new DummyEnemy(new Position(3, 4));   // Distanza 5
-        Targetable far = new DummyEnemy(new Position(6, 8));    // Distanza 10
+        Enemy near = new Enemy(new Position(3, 4),100, 1);   // Distanza 5
+        Enemy far = new Enemy(new Position(6, 8),100,1);    // Distanza 10
         
-        List<Targetable> targets = List.of(far, near);
+        List<Enemy> targets = List.of(far, near);
 
         Optional<ProjectileSpawnRequest> req = weapon.update(0.1, playerPos, targets);
 
@@ -64,11 +64,40 @@ class SimpleWeaponTest {
         assertEquals(10, req.get().damage());
         assertEquals(5.0, req.get().speed());
     }
+    @Test
+    void shouldTargetAliveEnemyEvenIfDeadIsCloser() {
+        // Nemico morto più vicino (distanza 5)
+        Enemy deadClose = new Enemy(new Position(3, 4),0,1.0);
+        // Nemico vivo più lontano (distanza 10)
+        Enemy aliveFar = new Enemy(new Position(6, 8),90,1.0);
+
+        List<Enemy> targets = List.of(deadClose, aliveFar);
+
+        Optional<ProjectileSpawnRequest> req = weapon.update(0.1, playerPos, targets);
+
+        assertTrue(req.isPresent(), "Deve selezionare un bersaglio vivo");
+        // Deve aver mirato a aliveFar (6, 8)
+        assertEquals(0.6, req.get().directionX(), 0.0001);
+        assertEquals(0.8, req.get().directionY(), 0.0001);
+    }
+    @Test
+    void shouldReturnEmptyAndNotStartCooldownIfAllEnemiesDead() {
+        Enemy dead1 = new Enemy(new Position(1, 1),0,1.0);
+        Enemy dead2 = new Enemy(new Position(2, 2),0,1.0);
+
+        Optional<ProjectileSpawnRequest> reqDead = weapon.update(0.1, playerPos, List.of(dead1, dead2));
+        assertTrue(reqDead.isEmpty(), "Non deve sparare se tutti i nemici sono morti");
+
+        // Verifica che il cooldown NON sia partito: al frame successivo con un nemico vivo spara subito
+        Enemy alive = new Enemy(new Position(5, 5),100,1.0);
+        Optional<ProjectileSpawnRequest> reqAlive = weapon.update(0.1, playerPos, List.of(alive));
+        assertTrue(reqAlive.isPresent(), "Deve sparare subito al nemico vivo senza attendere cooldown");
+    }
 
     @Test
     void shouldHandleOverlappingTargetWithoutNaN() {
         // Target esattamente sulle stesse coordinate del player
-        Targetable overlapping = new DummyEnemy(new Position(0, 0));
+        Enemy overlapping = new Enemy(new Position(0, 0),100,0);
         
         Optional<ProjectileSpawnRequest> req = weapon.update(0.1, playerPos, List.of(overlapping));
 
@@ -82,9 +111,9 @@ class SimpleWeaponTest {
 
     @Test
     void shouldIgnoreNullTargetsInList() {
-        Targetable valid = new DummyEnemy(new Position(0, 10));
+        Enemy valid = new Enemy(new Position(0, 10),100,1.0);
         // Lista con elementi nulli
-        List<Targetable> targets = Arrays.asList(null, valid, new DummyEnemy(null));
+        List<Enemy> targets = Arrays.asList(null, valid);
 
         Optional<ProjectileSpawnRequest> req = weapon.update(0.1, playerPos, targets);
 
@@ -95,7 +124,7 @@ class SimpleWeaponTest {
 
     @Test
     void shouldRespectCooldown() {
-        List<Targetable> targets = List.of(new DummyEnemy(new Position(5, 5)));
+        List<Enemy> targets = List.of(new Enemy(new Position(5, 5),100,1.0));
         
         // Sparo 1 (Successo)
         assertTrue(weapon.update(0.1, playerPos, targets).isPresent());
@@ -113,7 +142,7 @@ class SimpleWeaponTest {
         assertFalse(weapon.update(0.1, playerPos, Collections.emptyList()).isPresent());
         
         // Al frame dopo compare un target, deve sparare (il cooldown non è partito a vuoto)
-        List<Targetable> targets = List.of(new DummyEnemy(new Position(5, 5)));
+        List<Enemy> targets = List.of(new Enemy(new Position(5, 5),100,1.0));
         assertTrue(weapon.update(0.1, playerPos, targets).isPresent());
     }
 }
