@@ -12,7 +12,7 @@ class GameWorldTest {
 
     @Test
     void exposesDimensionsAndPlayer() {
-        Player player = new Player(new Position(10.0, 20.0), 100);
+        Player player = new Player(new Position(10.0, 20.0), 100, 200.0);
         GameWorld world = new GameWorld(800.0, 600.0, player);
 
         assertAll(
@@ -24,7 +24,7 @@ class GameWorldTest {
 
     @Test
     void rejectsInvalidWidth() {
-        Player player = new Player(new Position(0.0, 0.0), 100);
+        Player player = new Player(new Position(0.0, 0.0), 100, 200.0);
 
         assertAll(
                 () -> assertThrows(IllegalArgumentException.class,
@@ -42,7 +42,7 @@ class GameWorldTest {
 
     @Test
     void rejectsInvalidHeight() {
-        Player player = new Player(new Position(0.0, 0.0), 100);
+        Player player = new Player(new Position(0.0, 0.0), 100, 200.0);
 
         assertAll(
                 () -> assertThrows(IllegalArgumentException.class,
@@ -66,7 +66,7 @@ class GameWorldTest {
 
     @Test
     void movesWithinBoundsWithPositiveAndNegativeDeltas() {
-        Player player = new Player(new Position(20.0, 30.0), 100);
+        Player player = new Player(new Position(20.0, 30.0), 100, 200.0);
         GameWorld world = new GameWorld(100.0, 80.0, player);
 
         world.movePlayerBy(10.0, 15.0);
@@ -78,7 +78,7 @@ class GameWorldTest {
 
     @Test
     void clampsMovementAtWorldBoundaries() {
-        Player player = new Player(new Position(50.0, 40.0), 100);
+        Player player = new Player(new Position(50.0, 40.0), 100, 200.0);
         GameWorld world = new GameWorld(100.0, 80.0, player);
 
         world.movePlayerBy(-100.0, 0.0);
@@ -99,7 +99,7 @@ class GameWorldTest {
 
     @Test
     void handlesZeroExactBoundaryAndSingleAxisMovement() {
-        Player player = new Player(new Position(20.0, 30.0), 100);
+        Player player = new Player(new Position(20.0, 30.0), 100, 200.0);
         GameWorld world = new GameWorld(100.0, 80.0, player);
 
         world.movePlayerBy(0.0, 0.0);
@@ -118,7 +118,7 @@ class GameWorldTest {
     @Test
     void rejectsNonFiniteDeltasWithoutChangingPosition() {
         Position initialPosition = new Position(20.0, 30.0);
-        Player player = new Player(initialPosition, 100);
+        Player player = new Player(initialPosition, 100, 200.0);
         GameWorld world = new GameWorld(100.0, 80.0, player);
 
         assertAll(
@@ -144,16 +144,16 @@ class GameWorldTest {
         assertAll(
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> new GameWorld(100.0, 80.0,
-                                new Player(new Position(-1.0, 40.0), 100))),
+                                new Player(new Position(-1.0, 40.0), 100, 200.0))),
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> new GameWorld(100.0, 80.0,
-                                new Player(new Position(101.0, 40.0), 100))),
+                                new Player(new Position(101.0, 40.0), 100, 200.0))),
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> new GameWorld(100.0, 80.0,
-                                new Player(new Position(50.0, -1.0), 100))),
+                                new Player(new Position(50.0, -1.0), 100, 200.0))),
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> new GameWorld(100.0, 80.0,
-                                new Player(new Position(50.0, 81.0), 100)))
+                                new Player(new Position(50.0, 81.0), 100, 200.0)))
         );
     }
 
@@ -161,9 +161,9 @@ class GameWorldTest {
     void acceptsInitialPlayerPositionOnWorldBoundaries() {
         assertAll(
                 () -> assertDoesNotThrow(() -> new GameWorld(100.0, 80.0,
-                        new Player(new Position(0.0, 0.0), 100))),
+                        new Player(new Position(0.0, 0.0), 100, 200.0))),
                 () -> assertDoesNotThrow(() -> new GameWorld(100.0, 80.0,
-                        new Player(new Position(100.0, 80.0), 100)))
+                        new Player(new Position(100.0, 80.0), 100, 200.0)))
         );
     }
 }
