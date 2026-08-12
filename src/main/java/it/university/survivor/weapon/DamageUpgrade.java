@@ -12,11 +12,18 @@ public class DamageUpgrade implements WeaponUpgrade {
     }
 
     @Override
-    public WeaponStats apply(WeaponStats stats) {
+    public WeaponStats applyFlat(WeaponStats stats) {
         return new WeaponStats(
             stats.getCooldownSeconds(),
-            stats.getDamage() + bonusDamage,
+            stats.getDamage() + this.bonusDamage,
             stats.getProjectileSpeed()
         );
+    }
+    @Override
+    public WeaponStats applyPerc(WeaponStats stats){
+        return new WeaponStats(
+            stats.getCooldownSeconds(), 
+            stats.getDamage()*(1+this.bonusDamage),
+            stats.getProjectileSpeed()) ;               
     }
 }

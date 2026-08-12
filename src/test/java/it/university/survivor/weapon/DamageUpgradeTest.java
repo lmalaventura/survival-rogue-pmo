@@ -19,7 +19,7 @@ class DamageUpgradeTest {
                 new DamageUpgrade(5);
 
         WeaponStats upgraded =
-                upgrade.apply(original);
+                upgrade.applyFlat(original);
 
         assertEquals(1.0, upgraded.getCooldownSeconds());
         assertEquals(15, upgraded.getDamage());
@@ -39,7 +39,7 @@ class DamageUpgradeTest {
                 new DamageUpgrade(5);
 
         WeaponStats upgraded =
-                upgrade.apply(original);
+                upgrade.applyFlat(original);
 
         assertEquals(10, original.getDamage());
         assertEquals(15, upgraded.getDamage());
@@ -57,4 +57,4 @@ class DamageUpgradeTest {
                 () -> new DamageUpgrade(-5)
         );
     }
-}
+    @Test

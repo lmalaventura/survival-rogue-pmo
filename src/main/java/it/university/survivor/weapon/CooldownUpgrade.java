@@ -8,14 +8,19 @@ public class CooldownUpgrade implements WeaponUpgrade {
     }
 
     @Override
-    public WeaponStats apply(WeaponStats stats) {
-        double newCooldown =
-                Math.max(0.05, stats.getCooldownSeconds() - reduction);
-
+    public WeaponStats applyFlat(WeaponStats stats) {
         return new WeaponStats(
-            newCooldown,
+            stats.getCooldownSeconds() - this.reduction,
             stats.getDamage(),
             stats.getProjectileSpeed()
         );
+    }
+    @Override
+    public WeaponStats applyPerc(WeaponStats stats){
+
+        return new WeaponStats(
+            stats.getCooldownSeconds()*(1-this.reduction), 
+            stats.getDamage(),
+            stats.getProjectileSpeed()) ;               
     }
 }

@@ -1,5 +1,6 @@
 package it.university.survivor.weapon;
 public interface WeaponUpgrade {
 
-    WeaponStats apply(WeaponStats currentStats);
+    WeaponStats applyFlat(WeaponStats currentStats);
+    WeaponStats applyPerc(WeaponStats currentStats);
 }
