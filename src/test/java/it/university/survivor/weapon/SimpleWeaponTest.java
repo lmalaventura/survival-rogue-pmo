@@ -51,7 +51,7 @@ class SimpleWeaponTest {
     @Test
     void shouldTargetNearestEnemyAndNormalizeDirection() {
         Enemy near = new Enemy(new Position(3, 4),100, 1);   // Distanza 5
-        Enemy far = new Enemy(new Position(6, 8),100,1);    // Distanza 10
+        Enemy far = new Enemy(new Position(8, 8),100,1);    // Distanza 10
         
         List<Enemy> targets = List.of(far, near);
 
@@ -67,7 +67,8 @@ class SimpleWeaponTest {
     @Test
     void shouldTargetAliveEnemyEvenIfDeadIsCloser() {
         // Nemico morto più vicino (distanza 5)
-        Enemy deadClose = new Enemy(new Position(3, 4),0,1.0);
+        Enemy deadClose = new Enemy(new Position(3, 4),100,1.0);
+        deadClose.takeDamage(100);
         // Nemico vivo più lontano (distanza 10)
         Enemy aliveFar = new Enemy(new Position(6, 8),90,1.0);
 
@@ -82,8 +83,10 @@ class SimpleWeaponTest {
     }
     @Test
     void shouldReturnEmptyAndNotStartCooldownIfAllEnemiesDead() {
-        Enemy dead1 = new Enemy(new Position(1, 1),0,1.0);
-        Enemy dead2 = new Enemy(new Position(2, 2),0,1.0);
+        Enemy dead1 = new Enemy(new Position(1, 1),100,1.0);
+        Enemy dead2 = new Enemy(new Position(2, 2),100,1.0);
+         dead1.takeDamage(100);
+          dead2.takeDamage(100);
 
         Optional<ProjectileSpawnRequest> reqDead = weapon.update(0.1, playerPos, List.of(dead1, dead2));
         assertTrue(reqDead.isEmpty(), "Non deve sparare se tutti i nemici sono morti");
@@ -97,7 +100,7 @@ class SimpleWeaponTest {
     @Test
     void shouldHandleOverlappingTargetWithoutNaN() {
         // Target esattamente sulle stesse coordinate del player
-        Enemy overlapping = new Enemy(new Position(0, 0),100,0);
+        Enemy overlapping = new Enemy(new Position(0, 0),100,1);
         
         Optional<ProjectileSpawnRequest> req = weapon.update(0.1, playerPos, List.of(overlapping));
 
