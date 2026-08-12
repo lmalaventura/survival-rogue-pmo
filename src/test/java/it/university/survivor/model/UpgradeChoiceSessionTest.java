@@ -62,12 +62,16 @@ class UpgradeChoiceSessionTest {
 
         assertEquals(1, session.getRemainingRerolls());
 
+        List<Item> initialOptions = session.getCurrentOptions();
         session.reroll();
 
         assertEquals(0, session.getRemainingRerolls());
         List<Item> newOptions = session.getCurrentOptions();
 
         assertEquals(3, newOptions.size());
+        assertNotEquals(initialOptions, newOptions);
+
+
         for(Item item : newOptions) {
             assertNotNull(item);
             assertNotNull(item.rarity());
@@ -78,14 +82,19 @@ class UpgradeChoiceSessionTest {
 
     @Test
     void handlesSelectionByValidAndInvalidIndices() {
+        UpgradeChoiceSession sessionForBoundTest = new UpgradeChoiceSession(new UpgradeCatalog(), new Random(42));
+        assertThrows(IndexOutOfBoundsException.class, () -> sessionForBoundTest.selectOption(-1));
+        assertThrows(IndexOutOfBoundsException.class, () -> sessionForBoundTest.selectOption(3));
+
+        for(int index = 0; index < 3; index++) {
+
+     
         UpgradeChoiceSession session = new UpgradeChoiceSession(new UpgradeCatalog(), new Random(42));
         List<Item> options = session.getCurrentOptions();
 
-        assertThrows(IndexOutOfBoundsException.class, () -> session.selectOption(-1));
-        assertThrows(IndexOutOfBoundsException.class, () -> session.selectOption(3));
 
-        Item expected = options.get(1);
-        Item selected = session.selectOption(1);
+        Item expected = options.get(index);
+        Item selected = session.selectOption(index);
 
         assertEquals(expected, selected);
         assertTrue(session.isSelectionMade());
@@ -94,4 +103,6 @@ class UpgradeChoiceSessionTest {
         assertThrows(IllegalStateException.class, () -> session.selectOption(0));
         assertThrows(IllegalStateException.class, session::reroll);
     }
+ }
+
 }

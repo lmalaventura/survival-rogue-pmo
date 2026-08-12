@@ -38,8 +38,8 @@ public class UpgradeCatalog {
             new Template("Cuore di Pietra", new StatModifier(StatType.MAX_HEALTH, ModifierType.FLAT, 20.0)),
             new Template("Armatura Vitalizzante", new StatModifier(StatType.MAX_HEALTH, ModifierType.PERCENTAGE, 0.10)),
             new Template("Modulo Potenza", new StatModifier(StatType.DAMAGE, ModifierType.FLAT, 5.0)),
-            new Template("Iniettore di Plasma", new StatModifier(StatType.COOLDOWN, ModifierType.PERCENTAGE, -0.05)),
-            new Template("Circuito Sovralimentato", new StatModifier(StatType.COOLDOWN, ModifierType.PERCENTAGE, 0.10)),
+            new Template("Iniettore di Plasma", new StatModifier(StatType.COOLDOWN, ModifierType.PERCENTAGE, 0.08)),
+            new Template("Circuito Sovralimentato", new StatModifier(StatType.COOLDOWN, ModifierType.PERCENTAGE, -0.10)),
             new Template("Raffreddamento Istantaneo", new StatModifier(StatType.COOLDOWN, ModifierType.FLAT, -0.10))
         );
     }

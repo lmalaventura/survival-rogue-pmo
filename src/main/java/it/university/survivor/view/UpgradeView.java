@@ -40,7 +40,7 @@ public final class UpgradeView extends VBox {
         getChildren().add(optionsContainer);
 
         rerollButton = new Button();
-        rerollButton.setStyle("-fx-font-size: 13px; -fx-background-color: #555555; -fx-test-fill: white; -fx-cursor: hand;");
+        rerollButton.setStyle("-fx-font-size: 13px; -fx-background-color: #555555; -fx-text-fill: white; -fx-cursor: hand;");
         rerollButton.setOnAction(e -> {
             if(session.getRemainingRerolls() > 0 &&!session.isSelectionMade()) {
                 session.reroll();
@@ -57,7 +57,7 @@ public final class UpgradeView extends VBox {
             optionsContainer.getChildren().clear();
             List<Item> options = session.getCurrentOptions();
 
-            for(int i = 0; i<options.size(); i++) {
+            for(int i = 0; i < options.size(); i++) {
                 final int index = i;
                 Item item = options.get(i);
 
@@ -75,7 +75,7 @@ public final class UpgradeView extends VBox {
                 Button button = new Button(label);
                 button.setMinWidth(320);
                 button.setMinHeight(45);
-                button.setStyle("-fx-font-size: 14px; -fx-cursor: hand;");
+                button.setStyle("-fx-font-size: 14px; -fx-text-fill: black; -fx-cursor: hand;");
 
                 button.setOnAction(event -> {
                     Item selected = session.selectOption(index);
