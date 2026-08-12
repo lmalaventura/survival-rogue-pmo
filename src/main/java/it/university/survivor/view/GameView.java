@@ -5,6 +5,7 @@ import it.university.survivor.model.GameWorld;
 import it.university.survivor.model.Health;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
+import it.university.survivor.model.Projectile;
 import javafx.scene.Parent;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -17,6 +18,7 @@ public final class GameView {
 
     private static final double PLAYER_MARKER_RADIUS = 8.0;
     private static final double ENEMY_MARKER_RADIUS = 6.0;
+    private static final double PROJECTILE_MARKER_RADIUS = 3.0;
 
     private final Canvas canvas;
     private final Pane root;
@@ -53,12 +55,28 @@ public final class GameView {
         double enemyMarkerDiameter = ENEMY_MARKER_RADIUS * 2.0;
         graphics.setFill(Color.CRIMSON);
         for (Enemy enemy : world.getEnemies()) {
+            if (enemy.isDead()) {
+                continue;
+            }
+
             Position enemyPosition = enemy.getPosition();
             graphics.fillOval(
                     enemyPosition.x() - ENEMY_MARKER_RADIUS,
                     enemyPosition.y() - ENEMY_MARKER_RADIUS,
                     enemyMarkerDiameter,
                     enemyMarkerDiameter
+            );
+        }
+
+        double projectileMarkerDiameter = PROJECTILE_MARKER_RADIUS * 2.0;
+        graphics.setFill(Color.GOLD);
+        for (Projectile projectile : world.getProjectiles()) {
+            Position projectilePosition = projectile.getPosition();
+            graphics.fillOval(
+                    projectilePosition.x() - PROJECTILE_MARKER_RADIUS,
+                    projectilePosition.y() - PROJECTILE_MARKER_RADIUS,
+                    projectileMarkerDiameter,
+                    projectileMarkerDiameter
             );
         }
 

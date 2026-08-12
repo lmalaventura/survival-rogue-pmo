@@ -1,5 +1,7 @@
 package it.university.survivor.model;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -9,6 +11,7 @@ public final class GameWorld {
     private final double height;
     private final Player player;
     private final List<Enemy> enemies;
+    private final List<Projectile> projectiles = new ArrayList<>();
 
     public GameWorld(double width, double height, Player player) {
         this(width, height, player, List.of());
@@ -59,6 +62,40 @@ public final class GameWorld {
         return enemies;
     }
 
+    public List<Projectile> getProjectiles() {
+        return Collections.unmodifiableList(projectiles);
+    }
+
+    public void addProjectile(Projectile projectile) {
+        Projectile validatedProjectile = Objects.requireNonNull(
+                projectile,
+                "Projectile must not be null"
+        );
+        if (indexOfProjectile(validatedProjectile) >= 0) {
+            return;
+        }
+        if (!isWithinBounds(validatedProjectile.getPosition(), width, height)) {
+            throw new IllegalArgumentException(
+                    "Projectile position must be within world bounds"
+            );
+        }
+
+        projectiles.add(validatedProjectile);
+    }
+
+    public void removeProjectile(Projectile projectile) {
+        Projectile validatedProjectile = Objects.requireNonNull(
+                projectile,
+                "Projectile must not be null"
+        );
+        int projectileIndex = indexOfProjectile(validatedProjectile);
+        if (projectileIndex < 0) {
+            throw new IllegalArgumentException("Projectile must belong to this world");
+        }
+
+        projectiles.remove(projectileIndex);
+    }
+
     public void movePlayerBy(double deltaX, double deltaY) {
         if (!Double.isFinite(deltaX) || !Double.isFinite(deltaY)) {
             throw new IllegalArgumentException("Movement deltas must be finite");
@@ -81,11 +118,40 @@ public final class GameWorld {
         validatedEnemy.moveTo(clampMovement(validatedEnemy.getPosition(), deltaX, deltaY));
     }
 
+    public void moveProjectileBy(Projectile projectile, double deltaX, double deltaY) {
+        Projectile validatedProjectile = Objects.requireNonNull(
+                projectile,
+                "Projectile must not be null"
+        );
+        if (indexOfProjectile(validatedProjectile) < 0) {
+            throw new IllegalArgumentException("Projectile must belong to this world");
+        }
+        if (!Double.isFinite(deltaX) || !Double.isFinite(deltaY)) {
+            throw new IllegalArgumentException("Movement deltas must be finite");
+        }
+
+        Position currentPosition = validatedProjectile.getPosition();
+        validatedProjectile.moveTo(new Position(
+                currentPosition.x() + deltaX,
+                currentPosition.y() + deltaY
+        ));
+    }
+
     private Position clampMovement(Position currentPosition, double deltaX, double deltaY) {
         double newX = Math.max(0.0, Math.min(width, currentPosition.x() + deltaX));
         double newY = Math.max(0.0, Math.min(height, currentPosition.y() + deltaY));
 
         return new Position(newX, newY);
+    }
+
+    private int indexOfProjectile(Projectile projectile) {
+        for (int index = 0; index < projectiles.size(); index++) {
+            if (projectiles.get(index) == projectile) {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     private static boolean isWithinBounds(Position position, double width, double height) {

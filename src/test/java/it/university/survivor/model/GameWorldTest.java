@@ -372,6 +372,222 @@ class GameWorldTest {
         );
     }
 
+    @Test
+    void startsWithoutProjectilesForEveryExistingConstructor() {
+        Player playerWithoutEnemies = new Player(
+                new Position(50.0, 40.0),
+                100,
+                200.0
+        );
+        Player playerWithEnemies = new Player(
+                new Position(50.0, 40.0),
+                100,
+                200.0
+        );
+
+        GameWorld worldWithoutEnemies = new GameWorld(100.0, 80.0, playerWithoutEnemies);
+        GameWorld worldWithEnemies = new GameWorld(
+                100.0,
+                80.0,
+                playerWithEnemies,
+                List.of(enemyAt(10.0, 20.0))
+        );
+
+        assertAll(
+                () -> assertEquals(List.of(), worldWithoutEnemies.getProjectiles()),
+                () -> assertEquals(List.of(), worldWithEnemies.getProjectiles())
+        );
+    }
+
+    @Test
+    void addsProjectilePreservingItsIdentity() {
+        GameWorld world = worldWithEnemies(List.of());
+        Projectile projectile = projectileAt(20.0, 30.0);
+
+        world.addProjectile(projectile);
+
+        assertAll(
+                () -> assertEquals(1, world.getProjectiles().size()),
+                () -> assertSame(projectile, world.getProjectiles().get(0))
+        );
+    }
+
+    @Test
+    void addingTheSameProjectileTwiceDoesNotDuplicateIt() {
+        GameWorld world = worldWithEnemies(List.of());
+        Projectile projectile = projectileAt(20.0, 30.0);
+
+        world.addProjectile(projectile);
+        world.addProjectile(projectile);
+
+        assertAll(
+                () -> assertEquals(1, world.getProjectiles().size()),
+                () -> assertSame(projectile, world.getProjectiles().get(0))
+        );
+    }
+
+    @Test
+    void rejectsNullProjectileWhenAdding() {
+        GameWorld world = worldWithEnemies(List.of());
+
+        assertThrows(NullPointerException.class, () -> world.addProjectile(null));
+        assertEquals(List.of(), world.getProjectiles());
+    }
+
+    @Test
+    void rejectsProjectileAddedOutsideEachWorldBoundary() {
+        GameWorld world = worldWithEnemies(List.of());
+
+        assertAll(
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.addProjectile(projectileAt(-1.0, 40.0))),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.addProjectile(projectileAt(101.0, 40.0))),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.addProjectile(projectileAt(50.0, -1.0))),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.addProjectile(projectileAt(50.0, 81.0)))
+        );
+        assertEquals(List.of(), world.getProjectiles());
+    }
+
+    @Test
+    void acceptsProjectilesAddedOnWorldBoundaries() {
+        GameWorld world = worldWithEnemies(List.of());
+        Projectile topLeft = projectileAt(0.0, 0.0);
+        Projectile bottomRight = projectileAt(100.0, 80.0);
+
+        assertAll(
+                () -> assertDoesNotThrow(() -> world.addProjectile(topLeft)),
+                () -> assertDoesNotThrow(() -> world.addProjectile(bottomRight))
+        );
+        assertAll(
+                () -> assertSame(topLeft, world.getProjectiles().get(0)),
+                () -> assertSame(bottomRight, world.getProjectiles().get(1))
+        );
+    }
+
+    @Test
+    void exposesAStructurallyUnmodifiableProjectileList() {
+        GameWorld world = worldWithEnemies(List.of());
+        Projectile firstProjectile = projectileAt(20.0, 30.0);
+        Projectile secondProjectile = projectileAt(40.0, 50.0);
+        world.addProjectile(firstProjectile);
+
+        assertAll(
+                () -> assertThrows(UnsupportedOperationException.class,
+                        () -> world.getProjectiles().add(secondProjectile)),
+                () -> assertThrows(UnsupportedOperationException.class,
+                        () -> world.getProjectiles().remove(0)),
+                () -> assertThrows(UnsupportedOperationException.class,
+                        () -> world.getProjectiles().set(0, secondProjectile))
+        );
+        assertAll(
+                () -> assertEquals(1, world.getProjectiles().size()),
+                () -> assertSame(firstProjectile, world.getProjectiles().get(0))
+        );
+    }
+
+    @Test
+    void removesProjectileThatBelongsToWorld() {
+        GameWorld world = worldWithEnemies(List.of());
+        Projectile projectile = projectileAt(20.0, 30.0);
+        world.addProjectile(projectile);
+
+        world.removeProjectile(projectile);
+
+        assertEquals(List.of(), world.getProjectiles());
+    }
+
+    @Test
+    void rejectsNullProjectileWhenMovingOrRemoving() {
+        GameWorld world = worldWithEnemies(List.of());
+
+        assertAll(
+                () -> assertThrows(NullPointerException.class,
+                        () -> world.moveProjectileBy(null, 1.0, 1.0)),
+                () -> assertThrows(NullPointerException.class,
+                        () -> world.removeProjectile(null))
+        );
+    }
+
+    @Test
+    void rejectsForeignProjectileWhenMovingOrRemoving() {
+        GameWorld world = worldWithEnemies(List.of());
+        Projectile worldProjectile = projectileAt(20.0, 30.0);
+        Projectile foreignProjectile = projectileAt(20.0, 30.0);
+        world.addProjectile(worldProjectile);
+
+        assertAll(
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.moveProjectileBy(foreignProjectile, 5.0, 5.0)),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.removeProjectile(foreignProjectile))
+        );
+        assertAll(
+                () -> assertEquals(new Position(20.0, 30.0),
+                        worldProjectile.getPosition()),
+                () -> assertEquals(new Position(20.0, 30.0),
+                        foreignProjectile.getPosition()),
+                () -> assertSame(worldProjectile, world.getProjectiles().get(0))
+        );
+    }
+
+    @Test
+    void movesProjectileWithoutClampingAtWorldBoundaries() {
+        GameWorld world = worldWithEnemies(List.of());
+        Projectile projectile = projectileAt(95.0, 75.0);
+        world.addProjectile(projectile);
+
+        world.moveProjectileBy(projectile, 10.0, 15.0);
+
+        assertAll(
+                () -> assertEquals(new Position(105.0, 90.0),
+                        projectile.getPosition()),
+                () -> assertSame(projectile, world.getProjectiles().get(0))
+        );
+    }
+
+    @Test
+    void rejectsNonFiniteProjectileDeltasWithoutChangingPosition() {
+        GameWorld world = worldWithEnemies(List.of());
+        Projectile projectile = projectileAt(20.0, 30.0);
+        Position initialPosition = projectile.getPosition();
+        world.addProjectile(projectile);
+
+        assertAll(
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.moveProjectileBy(projectile, Double.NaN, 0.0)),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.moveProjectileBy(
+                                projectile,
+                                Double.POSITIVE_INFINITY,
+                                0.0
+                        )),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.moveProjectileBy(
+                                projectile,
+                                Double.NEGATIVE_INFINITY,
+                                0.0
+                        )),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.moveProjectileBy(projectile, 0.0, Double.NaN)),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.moveProjectileBy(
+                                projectile,
+                                0.0,
+                                Double.POSITIVE_INFINITY
+                        )),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.moveProjectileBy(
+                                projectile,
+                                0.0,
+                                Double.NEGATIVE_INFINITY
+                        ))
+        );
+        assertEquals(initialPosition, projectile.getPosition());
+    }
+
     private static GameWorld worldWithEnemies(List<Enemy> enemies) {
         Player player = new Player(new Position(50.0, 40.0), 100, 200.0);
         return new GameWorld(100.0, 80.0, player, enemies);
@@ -379,5 +595,9 @@ class GameWorldTest {
 
     private static Enemy enemyAt(double x, double y) {
         return new Enemy(new Position(x, y), 100, 80.0);
+    }
+
+    private static Projectile projectileAt(double x, double y) {
+        return new Projectile(new Position(x, y), 1.0, 0.0, 10, 300.0);
     }
 }
