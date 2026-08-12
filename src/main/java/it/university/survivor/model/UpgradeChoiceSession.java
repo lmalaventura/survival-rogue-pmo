@@ -18,7 +18,7 @@ public class UpgradeChoiceSession {
     public UpgradeChoiceSession(UpgradeCatalog catalog, Random random) {
         this.catalog = Objects.requireNonNull(catalog, "Catalog must not be null");
         this.random = Objects.requireNonNull(random, "Random must not be null");
-        this.remainingRerolls = 1;
+        this.remainingRerolls = 2;
         this.selectedItem = null;
         this.currentOptions = generateOptions();
     }
@@ -71,16 +71,17 @@ public class UpgradeChoiceSession {
             options.add(new Item(template.name(), drawnRarity, template.modifier()));
         }
         return Collections.unmodifiableList(options);
-      
     }
     private Rarity drawRarity() {
         double roll = random.nextDouble();
-        if (roll < 0.60) {
+        if (roll < 0.50) {
             return Rarity.COMMON;
-        } else if (roll < 0.90) {
+        } else if (roll < 0.75) {
             return Rarity.RARE;
+        } else if (roll < 0.98) {
+            return Rarity.LEGENDARY;
         } else {
-            return Rarity.EPIC;
+            return Rarity.ULTRA;
         }
     }
 

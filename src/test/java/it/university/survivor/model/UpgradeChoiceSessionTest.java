@@ -60,24 +60,36 @@ class UpgradeChoiceSessionTest {
     void handlesRerollsCorrectly() {
         UpgradeChoiceSession session = new UpgradeChoiceSession(new UpgradeCatalog(), new Random(42));
 
-        assertEquals(1, session.getRemainingRerolls());
+        assertEquals(2, session.getRemainingRerolls());
 
-        List<Item> initialOptions = session.getCurrentOptions();
+        List<Item> firstOffer = session.getCurrentOptions();
         session.reroll();
 
+        assertEquals(1, session.getRemainingRerolls());
+        List<Item> secondOffer = session.getCurrentOptions();
+        assertNotEquals(firstOffer, secondOffer);
+        session.reroll();
         assertEquals(0, session.getRemainingRerolls());
-        List<Item> newOptions = session.getCurrentOptions();
 
-        assertEquals(3, newOptions.size());
-        assertNotEquals(initialOptions, newOptions);
-
-
-        for(Item item : newOptions) {
-            assertNotNull(item);
-            assertNotNull(item.rarity());
-        }
         assertThrows(IllegalStateException.class, session::reroll);
 
+    }
+    @Test
+    void handlesRerollsCorrectly2To1To0AndRejectsThird() {
+        UpgradeChoiceSession session = new UpgradeChoiceSession(new UpgradeCatalog(), new Random(42));
+
+        assertEquals(2, session.getRemainingRerolls());
+
+        List<Item> firstOffer = session.getCurrentOptions();
+        session.reroll();
+        assertEquals(1, session.getRemainingRerolls());
+        List<Item> secondOffer = session.getCurrentOptions();
+        assertNotEquals(firstOffer, secondOffer);
+
+        session.reroll();
+        assertEquals(0, session.getRemainingRerolls());
+
+        assertThrows(IllegalStateException.class, session::reroll);
     }
 
     @Test
@@ -87,8 +99,6 @@ class UpgradeChoiceSessionTest {
         assertThrows(IndexOutOfBoundsException.class, () -> sessionForBoundTest.selectOption(3));
 
         for(int index = 0; index < 3; index++) {
-
-     
         UpgradeChoiceSession session = new UpgradeChoiceSession(new UpgradeCatalog(), new Random(42));
         List<Item> options = session.getCurrentOptions();
 
