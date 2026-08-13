@@ -78,6 +78,8 @@ public class UpgradeChoiceSession {
             return Rarity.COMMON;
         } else if (roll < 0.75) {
             return Rarity.RARE;
+        } else if (roll < 0.90) {
+            return Rarity.EPIC;
         } else if (roll < 0.98) {
             return Rarity.LEGENDARY;
         } else {

@@ -19,7 +19,7 @@ public final class ResultView extends VBox {
 
 
         Label titleLabel = new Label("REPORT FINALE RUN");
-        titleLabel.setStyle("-fx-test-fill: #FFD700; -fx-font-size: 24px; -fx-font-weight: bold;");
+        titleLabel.setStyle("-fx-text-fill: #FFD700; -fx-font-size: 24px; -fx-font-weight: bold;");
 
         Label levelLabel = new Label("Livello Finale: " + finalLevel);
         levelLabel.setStyle("-fx-text-fill: white; -fx-font-size: 16px;");

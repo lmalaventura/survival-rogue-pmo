@@ -13,7 +13,7 @@ class ExperienceProgressionTest {
         assertEquals(0, exp.getCurrentExperience());
         assertEquals(100, exp.getExperienceForNextLevel());
         assertEquals(0.0, exp.getProgress(), 0.0001);
-        assertFalse(exp.haspendingLevelUp());
+        assertFalse(exp.hasPendingLevelUp());
         assertEquals(0, exp.getPendingLevelUps());
     }
 
@@ -26,7 +26,7 @@ class ExperienceProgressionTest {
         assertEquals(50, exp.getCurrentExperience());
         assertEquals(100, exp.getExperienceForNextLevel());
         assertEquals(0.5, exp.getProgress());
-        assertFalse(exp.haspendingLevelUp());
+        assertFalse(exp.hasPendingLevelUp());
     }
     @Test
     void exactThresholdReached() {
@@ -36,7 +36,7 @@ class ExperienceProgressionTest {
         assertEquals(2, exp.getLevel());
         assertEquals(0, exp.getCurrentExperience());
         assertEquals(125, exp.getExperienceForNextLevel());
-        assertTrue(exp.haspendingLevelUp());
+        assertTrue(exp.hasPendingLevelUp());
         assertEquals(1, exp.getPendingLevelUps());
     }
 

@@ -11,7 +11,8 @@ class UpgradeCatalogTest {
     void defaultCatalogIsValid() {
         UpgradeCatalog catalog = new UpgradeCatalog();
         assertNotNull(catalog.getTemplates());
-        assertTrue(catalog.getTemplates().size() >= 3);
+        int templateCount = catalog.getTemplates().size();
+        assertTrue(templateCount >= 8 && templateCount <= 10);
 
         for (UpgradeCatalog.Template template : catalog.getTemplates()) {
             assertNotNull(template.name());

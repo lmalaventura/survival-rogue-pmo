@@ -48,7 +48,7 @@ public class ExperienceProgression {
     public double getProgress() {
         return (double) currentExperience / experienceForNextLevel;
     }
-    public boolean haspendingLevelUp(){
+    public boolean hasPendingLevelUp(){
         return pendingLevelUps > 0;
     }
     public int getPendingLevelUps() {

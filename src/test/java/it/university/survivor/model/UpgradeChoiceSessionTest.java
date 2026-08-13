@@ -57,6 +57,20 @@ class UpgradeChoiceSessionTest {
     }
 
     @Test
+    void generatesEpicRarityForRollInEpicRange() {
+        Random epicRandom = new Random(0) {
+            @Override
+            public double nextDouble() {
+                return 0.80;
+            }
+        };
+        UpgradeChoiceSession session = new UpgradeChoiceSession(new UpgradeCatalog(), epicRandom);
+
+        assertTrue(session.getCurrentOptions().stream()
+                .allMatch(item -> item.rarity() == Rarity.EPIC));
+    }
+
+    @Test
     void handlesRerollsCorrectly() {
         UpgradeChoiceSession session = new UpgradeChoiceSession(new UpgradeCatalog(), new Random(42));
 
