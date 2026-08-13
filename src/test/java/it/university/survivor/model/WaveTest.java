@@ -23,31 +23,70 @@ class WaveTest {
 
     @Test
     void waveShouldRejectNullEnemyList() {
-        assertThrows(NullPointerException.class, () -> new Wave(null));
+        assertThrows(
+                NullPointerException.class,
+                () -> new Wave(1, null)
+        );
     }
 
     @Test
     void waveShouldRejectEmptyEnemyList() {
-        assertThrows(IllegalArgumentException.class, () -> new Wave(List.of()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Wave(1, List.of())
+        );
+    }
+
+    @Test
+    void waveShouldRejectZeroWaveNumber() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Wave(0, List.of(createEnemy()))
+        );
+    }
+
+    @Test
+    void waveShouldRejectNegativeWaveNumber() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Wave(-1, List.of(createEnemy()))
+        );
     }
 
     @Test
     void waveShouldAcceptOneEnemy() {
-        Wave wave = new Wave(List.of(createEnemy()));
+        Wave wave = new Wave(1, List.of(createEnemy()));
 
         assertEquals(1, wave.getEnemies().size());
     }
 
     @Test
     void waveShouldAcceptMoreThanThreeEnemies() {
-        Wave wave = new Wave(List.of(
-            createEnemy(),
-            createEnemy(),
-            createEnemy(),
-            createEnemy()
+        Wave wave = new Wave(1, List.of(
+                createEnemy(),
+                createEnemy(),
+                createEnemy(),
+                createEnemy()
         ));
 
         assertEquals(4, wave.getEnemies().size());
+    }
+
+    @Test
+    void waveShouldExposeWaveNumber() {
+        Wave wave = new Wave(3, List.of(createEnemy()));
+
+        assertEquals(3, wave.getWaveNumber());
+    }
+
+    @Test
+    void waveShouldExposeEnemiesAsUnmodifiableList() {
+        Wave wave = new Wave(1, List.of(createEnemy()));
+
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> wave.getEnemies().add(createEnemy())
+        );
     }
 
     @Test
@@ -56,7 +95,7 @@ class WaveTest {
         Enemy enemy2 = createEnemy();
         Enemy enemy3 = createEnemy();
 
-        Wave wave = new Wave(List.of(enemy1, enemy2, enemy3));
+        Wave wave = new Wave(1, List.of(enemy1, enemy2, enemy3));
 
         assertFalse(wave.isCompleted());
 
@@ -73,7 +112,7 @@ class WaveTest {
         Enemy enemy2 = createEnemy();
         Enemy enemy3 = createEnemy();
 
-        Wave wave = new Wave(List.of(enemy1, enemy2, enemy3));
+        Wave wave = new Wave(1, List.of(enemy1, enemy2, enemy3));
 
         enemy1.takeDamage(100);
         enemy2.takeDamage(100);
