@@ -1,10 +1,12 @@
 package it.university.survivor.controller;
 
 import it.university.survivor.model.Enemy;
+import it.university.survivor.model.ExperienceProgression;
 import it.university.survivor.model.GameWorld;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
 import it.university.survivor.model.Projectile;
+import it.university.survivor.model.RunStatistics;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -17,15 +19,42 @@ public final class GameController {
     private static final double PROJECTILE_ENEMY_COLLISION_DISTANCE = 9.0;
     private static final double CONTACT_DISTANCE_TOLERANCE = 1.0e-9;
     private static final int ENEMY_CONTACT_DAMAGE = 10;
+    private static final int ENEMY_EXPERIENCE_REWARD = 25;
     private static final double PLAYER_HIT_INVULNERABILITY_SECONDS = 0.5;
 
     private final GameWorld world;
+    private final ExperienceProgression experienceProgression;
+    private final RunStatistics runStatistics;
     private final EnumSet<MovementDirection> activeDirections =
             EnumSet.noneOf(MovementDirection.class);
     private double playerHitInvulnerabilityRemaining = 0.0;
 
     public GameController(GameWorld world) {
+        this(world, new ExperienceProgression(), new RunStatistics());
+    }
+
+    public GameController(
+            GameWorld world,
+            ExperienceProgression experienceProgression,
+            RunStatistics runStatistics
+    ) {
         this.world = Objects.requireNonNull(world, "World must not be null");
+        this.experienceProgression = Objects.requireNonNull(
+                experienceProgression,
+                "Experience progression must not be null"
+        );
+        this.runStatistics = Objects.requireNonNull(
+                runStatistics,
+                "Run statistics must not be null"
+        );
+    }
+
+    public ExperienceProgression getExperienceProgression() {
+        return experienceProgression;
+    }
+
+    public RunStatistics getRunStatistics() {
+        return runStatistics;
     }
 
     public void setDirectionActive(MovementDirection direction, boolean active) {
@@ -158,7 +187,13 @@ public final class GameController {
 
             Enemy hitEnemy = findFirstCollidingEnemy(projectile);
             if (hitEnemy != null) {
+                boolean wasAlive = !hitEnemy.isDead();
                 hitEnemy.takeDamage(projectile.getDamage());
+                if (wasAlive && hitEnemy.isDead()) {
+                    experienceProgression.addExperience(ENEMY_EXPERIENCE_REWARD);
+                    runStatistics.recordEnemyDefeated();
+                    runStatistics.recordExperienceGained(ENEMY_EXPERIENCE_REWARD);
+                }
                 world.removeProjectile(projectile);
             }
         }
