@@ -1,6 +1,7 @@
 package it.university.survivor.view;
 
 import it.university.survivor.model.Enemy;
+import it.university.survivor.model.ExperienceProgression;
 import it.university.survivor.model.GameWorld;
 import it.university.survivor.model.Health;
 import it.university.survivor.model.Player;
@@ -11,6 +12,8 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 
 import java.util.Objects;
 
@@ -20,10 +23,45 @@ public final class GameView {
     private static final double ENEMY_MARKER_RADIUS = 6.0;
     private static final double PROJECTILE_MARKER_RADIUS = 3.0;
 
+    private static final double HUD_MARGIN = 16.0;
+    private static final double HEART_X = HUD_MARGIN;
+    private static final double HEART_Y = HUD_MARGIN;
+    private static final double HEART_WIDTH = 38.0;
+    private static final double HEART_HEIGHT = 34.0;
+    private static final double HEART_OUTLINE_WIDTH = 2.0;
+    private static final double HEART_TOOLTIP_GAP = 10.0;
+    private static final double HEART_TOOLTIP_WIDTH = 112.0;
+    private static final double HEART_TOOLTIP_HEIGHT = 24.0;
+    private static final double HEART_TOOLTIP_PADDING = 6.0;
+
+    private static final double XP_BAR_X = HUD_MARGIN;
+    private static final double XP_BAR_WIDTH = 220.0;
+    private static final double XP_BAR_HEIGHT = 14.0;
+    private static final double XP_BAR_BOTTOM_MARGIN = 18.0;
+    private static final double XP_BAR_INSET = 2.0;
+    private static final double XP_LABEL_GAP = 6.0;
+
+    private static final Color HEART_EMPTY_COLOR = Color.rgb(62, 24, 32);
+    private static final Color HEART_FILL_COLOR = Color.rgb(220, 38, 58);
+    private static final Color HEART_OUTLINE_COLOR = Color.rgb(32, 10, 16);
+    private static final Color XP_BACKGROUND_COLOR = Color.rgb(24, 30, 40);
+    private static final Color XP_FILL_COLOR = Color.rgb(45, 132, 220);
+    private static final Color HUD_OUTLINE_COLOR = Color.rgb(12, 16, 22);
+
     private final Canvas canvas;
     private final Pane root;
+    private final ExperienceProgression experienceProgression;
+    private boolean heartHovered;
 
     public GameView(double width, double height) {
+        this(width, height, new ExperienceProgression());
+    }
+
+    public GameView(
+            double width,
+            double height,
+            ExperienceProgression experienceProgression
+    ) {
         if (!Double.isFinite(width) || width <= 0.0) {
             throw new IllegalArgumentException("Width must be finite and greater than zero");
         }
@@ -31,7 +69,17 @@ public final class GameView {
             throw new IllegalArgumentException("Height must be finite and greater than zero");
         }
 
+        this.experienceProgression = Objects.requireNonNull(
+                experienceProgression,
+                "Experience progression must not be null"
+        );
         canvas = new Canvas(width, height);
+        canvas.setOnMouseMoved(event -> heartHovered = isInsideHeart(
+                event.getX(),
+                event.getY()
+        ));
+        canvas.setOnMouseExited(event -> heartHovered = false);
+
         root = new Pane();
         root.getChildren().add(canvas);
         root.setMinSize(width, height);
@@ -92,12 +140,157 @@ public final class GameView {
                 markerDiameter
         );
 
-        Health health = player.getHealth();
+        drawHealthHud(graphics, player.getHealth());
+        drawExperienceHud(graphics);
+    }
+
+    private void drawHealthHud(GraphicsContext graphics, Health health) {
+        double healthRatio = calculateRatio(
+                health.getCurrentHealth(),
+                health.getMaxHealth()
+        );
+        drawHeart(graphics, healthRatio);
+
+        if (!heartHovered) {
+            return;
+        }
+
+        double tooltipX = HEART_X + HEART_WIDTH + HEART_TOOLTIP_GAP;
+        double tooltipY = HEART_Y + (HEART_HEIGHT - HEART_TOOLTIP_HEIGHT) / 2.0;
+
+        graphics.save();
+        graphics.setFill(Color.rgb(12, 16, 22, 0.88));
+        graphics.fillRoundRect(
+                tooltipX,
+                tooltipY,
+                HEART_TOOLTIP_WIDTH,
+                HEART_TOOLTIP_HEIGHT,
+                6.0,
+                6.0
+        );
         graphics.setFill(Color.WHITE);
+        graphics.setFont(Font.font("System", FontWeight.BOLD, 12.0));
         graphics.fillText(
                 "HP: " + health.getCurrentHealth() + " / " + health.getMaxHealth(),
-                12.0,
-                22.0
+                tooltipX + HEART_TOOLTIP_PADDING,
+                tooltipY + HEART_TOOLTIP_HEIGHT - HEART_TOOLTIP_PADDING
         );
+        graphics.restore();
+    }
+
+    private void drawHeart(GraphicsContext graphics, double healthRatio) {
+        graphics.save();
+
+        traceHeartPath(graphics);
+        graphics.setFill(HEART_EMPTY_COLOR);
+        graphics.fill();
+
+        if (healthRatio > 0.0) {
+            double fillHeight = HEART_HEIGHT * healthRatio;
+            double fillY = HEART_Y + HEART_HEIGHT - fillHeight;
+
+            graphics.save();
+            traceHeartPath(graphics);
+            graphics.clip();
+            graphics.setFill(HEART_FILL_COLOR);
+            graphics.fillRect(HEART_X, fillY, HEART_WIDTH, fillHeight);
+            graphics.restore();
+        }
+
+        traceHeartPath(graphics);
+        graphics.setStroke(HEART_OUTLINE_COLOR);
+        graphics.setLineWidth(HEART_OUTLINE_WIDTH);
+        graphics.stroke();
+        graphics.restore();
+    }
+
+    private static void traceHeartPath(GraphicsContext graphics) {
+        double centerX = HEART_X + HEART_WIDTH / 2.0;
+        double bottomY = HEART_Y + HEART_HEIGHT;
+
+        graphics.beginPath();
+        graphics.moveTo(centerX, bottomY);
+        graphics.bezierCurveTo(
+                HEART_X + HEART_WIDTH * 0.10,
+                HEART_Y + HEART_HEIGHT * 0.64,
+                HEART_X,
+                HEART_Y + HEART_HEIGHT * 0.43,
+                HEART_X,
+                HEART_Y + HEART_HEIGHT * 0.27
+        );
+        graphics.bezierCurveTo(
+                HEART_X,
+                HEART_Y + HEART_HEIGHT * 0.04,
+                HEART_X + HEART_WIDTH * 0.28,
+                HEART_Y,
+                centerX,
+                HEART_Y + HEART_HEIGHT * 0.22
+        );
+        graphics.bezierCurveTo(
+                HEART_X + HEART_WIDTH * 0.72,
+                HEART_Y,
+                HEART_X + HEART_WIDTH,
+                HEART_Y + HEART_HEIGHT * 0.04,
+                HEART_X + HEART_WIDTH,
+                HEART_Y + HEART_HEIGHT * 0.27
+        );
+        graphics.bezierCurveTo(
+                HEART_X + HEART_WIDTH,
+                HEART_Y + HEART_HEIGHT * 0.43,
+                HEART_X + HEART_WIDTH * 0.90,
+                HEART_Y + HEART_HEIGHT * 0.64,
+                centerX,
+                bottomY
+        );
+        graphics.closePath();
+    }
+
+    private void drawExperienceHud(GraphicsContext graphics) {
+        double barY = canvas.getHeight() - XP_BAR_BOTTOM_MARGIN - XP_BAR_HEIGHT;
+        double experienceRatio = calculateRatio(
+                experienceProgression.getCurrentExperience(),
+                experienceProgression.getExperienceForNextLevel()
+        );
+
+        graphics.save();
+        graphics.setFill(Color.WHITE);
+        graphics.setFont(Font.font("System", FontWeight.BOLD, 13.0));
+        graphics.fillText(
+                "LEVEL " + experienceProgression.getLevel(),
+                XP_BAR_X,
+                barY - XP_LABEL_GAP
+        );
+
+        graphics.setFill(XP_BACKGROUND_COLOR);
+        graphics.fillRect(XP_BAR_X, barY, XP_BAR_WIDTH, XP_BAR_HEIGHT);
+
+        double innerWidth = XP_BAR_WIDTH - 2.0 * XP_BAR_INSET;
+        double innerHeight = XP_BAR_HEIGHT - 2.0 * XP_BAR_INSET;
+        graphics.setFill(XP_FILL_COLOR);
+        graphics.fillRect(
+                XP_BAR_X + XP_BAR_INSET,
+                barY + XP_BAR_INSET,
+                innerWidth * experienceRatio,
+                innerHeight
+        );
+
+        graphics.setStroke(HUD_OUTLINE_COLOR);
+        graphics.setLineWidth(2.0);
+        graphics.strokeRect(XP_BAR_X, barY, XP_BAR_WIDTH, XP_BAR_HEIGHT);
+        graphics.restore();
+    }
+
+    private static double calculateRatio(int currentValue, int maximumValue) {
+        if (maximumValue <= 0) {
+            return 0.0;
+        }
+
+        double ratio = (double) currentValue / maximumValue;
+        return Math.max(0.0, Math.min(1.0, ratio));
+    }
+
+    private static boolean isInsideHeart(double x, double y) {
+        return x >= HEART_X && x <= HEART_X + HEART_WIDTH
+                && y >= HEART_Y && y <= HEART_Y + HEART_HEIGHT;
     }
 }

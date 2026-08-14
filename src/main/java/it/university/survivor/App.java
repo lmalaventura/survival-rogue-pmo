@@ -3,9 +3,11 @@ package it.university.survivor;
 import it.university.survivor.controller.GameController;
 import it.university.survivor.controller.MovementDirection;
 import it.university.survivor.model.Enemy;
+import it.university.survivor.model.ExperienceProgression;
 import it.university.survivor.model.GameWorld;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
+import it.university.survivor.model.RunStatistics;
 import it.university.survivor.model.enemy.EnemySpawner;
 import it.university.survivor.view.GameView;
 import javafx.application.Application;
@@ -41,8 +43,10 @@ public class App extends Application {
                 new Position(776.0, 450.0)
         ));
         GameWorld world = new GameWorld(ARENA_WIDTH, ARENA_HEIGHT, player, enemies);
-        GameView view = new GameView(ARENA_WIDTH, ARENA_HEIGHT);
-        GameController controller = new GameController(world);
+        ExperienceProgression progression = new ExperienceProgression();
+        RunStatistics statistics = new RunStatistics();
+        GameController controller = new GameController(world, progression, statistics);
+        GameView view = new GameView(ARENA_WIDTH, ARENA_HEIGHT, progression);
         gameLoop = new GameLoop(world, controller, view);
 
         Scene scene = new Scene(view.getRoot(), ARENA_WIDTH, ARENA_HEIGHT);
