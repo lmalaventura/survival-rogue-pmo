@@ -30,15 +30,16 @@ public final class EnemySpawner {
     public List<Enemy> spawn(List<Position> positions) {
         Objects.requireNonNull(positions, "Positions must not be null");
 
-        if (positions.size() != 3) {
+        if (positions.isEmpty()) {
             throw new IllegalArgumentException(
-                    "A wave must spawn exactly 3 enemies"
+                    "Positions must contain at least one position"
             );
         }
 
         List<Enemy> enemies = new ArrayList<>();
 
         for (Position position : positions) {
+            Objects.requireNonNull(position, "Position must not be null");
             enemies.add(new Enemy(position, maxHealth, movementSpeed));
         }
 
