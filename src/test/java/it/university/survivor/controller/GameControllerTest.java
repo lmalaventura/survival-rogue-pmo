@@ -1,16 +1,21 @@
 package it.university.survivor.controller;
 
 import it.university.survivor.model.Enemy;
+import it.university.survivor.model.ExperienceProgression;
 import it.university.survivor.model.GameWorld;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
+import it.university.survivor.model.Projectile;
+import it.university.survivor.model.RunStatistics;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GameControllerTest {
 
@@ -650,6 +655,374 @@ class GameControllerTest {
     }
 
     @Test
+    void movesProjectileHorizontally() {
+        GameWorld world = createWorld(500.0, 500.0);
+        Projectile projectile = projectileAt(100.0, 100.0, 1.0, 0.0, 10, 100.0);
+        world.addProjectile(projectile);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        assertEquals(new Position(110.0, 100.0), projectile.getPosition());
+    }
+
+    @Test
+    void movesProjectileAlongNormalizedDiagonal() {
+        GameWorld world = createWorld(500.0, 500.0);
+        Projectile projectile = projectileAt(100.0, 100.0, 3.0, 4.0, 10, 100.0);
+        world.addProjectile(projectile);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        assertPosition(106.0, 108.0, projectile.getPosition());
+    }
+
+    @Test
+    void projectileMovementIsFrameIndependent() {
+        GameWorld singleUpdateWorld = createWorld(500.0, 500.0);
+        Projectile singleUpdateProjectile = projectileAt(
+                100.0, 100.0, 1.0, 0.0, 10, 100.0
+        );
+        singleUpdateWorld.addProjectile(singleUpdateProjectile);
+        GameController singleUpdateController = new GameController(singleUpdateWorld);
+
+        GameWorld splitUpdateWorld = createWorld(500.0, 500.0);
+        Projectile splitUpdateProjectile = projectileAt(
+                100.0, 100.0, 1.0, 0.0, 10, 100.0
+        );
+        splitUpdateWorld.addProjectile(splitUpdateProjectile);
+        GameController splitUpdateController = new GameController(splitUpdateWorld);
+
+        singleUpdateController.update(0.1);
+        splitUpdateController.update(0.05);
+        splitUpdateController.update(0.05);
+
+        assertPosition(
+                singleUpdateProjectile.getPosition().x(),
+                singleUpdateProjectile.getPosition().y(),
+                splitUpdateProjectile.getPosition()
+        );
+    }
+
+    @Test
+    void capsLargeDeltaForProjectileMovement() {
+        GameWorld world = createWorld(500.0, 500.0);
+        Projectile projectile = projectileAt(100.0, 100.0, 1.0, 0.0, 10, 100.0);
+        world.addProjectile(projectile);
+        GameController controller = new GameController(world);
+
+        controller.update(5.0);
+
+        assertEquals(new Position(110.0, 100.0), projectile.getPosition());
+    }
+
+    @Test
+    void removesProjectileAfterItLeavesArena() {
+        GameWorld world = createWorld(500.0, 500.0);
+        Projectile projectile = projectileAt(995.0, 500.0, 1.0, 0.0, 10, 100.0);
+        world.addProjectile(projectile);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        assertEquals(List.of(), world.getProjectiles());
+    }
+
+    @Test
+    void keepsProjectileExactlyOnArenaBoundary() {
+        GameWorld world = createWorld(500.0, 500.0);
+        Projectile projectile = projectileAt(990.0, 500.0, 1.0, 0.0, 10, 100.0);
+        world.addProjectile(projectile);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(new Position(1_000.0, 500.0),
+                        projectile.getPosition()),
+                () -> assertEquals(List.of(projectile), world.getProjectiles())
+        );
+    }
+
+    @Test
+    void projectileDamagesLivingEnemyAndIsRemoved() {
+        Enemy enemy = new Enemy(new Position(486.0, 500.0), 100, MOVEMENT_SPEED);
+        GameWorld world = createWorld(500.0, 500.0, enemy);
+        Projectile projectile = projectileAt(476.0, 500.0, 1.0, 0.0, 25, 100.0);
+        world.addProjectile(projectile);
+        ExperienceProgression experienceProgression = new ExperienceProgression();
+        RunStatistics runStatistics = new RunStatistics();
+        GameController controller = new GameController(
+                world,
+                experienceProgression,
+                runStatistics
+        );
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(75, enemy.getHealth().getCurrentHealth()),
+                () -> assertEquals(List.of(), world.getProjectiles()),
+                () -> assertEquals(0, experienceProgression.getCurrentExperience()),
+                () -> assertEquals(0, runStatistics.getEnemiesDefeated()),
+                () -> assertEquals(0, runStatistics.getExperienceGained())
+        );
+    }
+
+    @Test
+    void projectileCanKillEnemy() {
+        Enemy enemy = new Enemy(new Position(486.0, 500.0), 20, MOVEMENT_SPEED);
+        GameWorld world = createWorld(500.0, 500.0, enemy);
+        Projectile projectile = projectileAt(476.0, 500.0, 1.0, 0.0, 25, 100.0);
+        world.addProjectile(projectile);
+        ExperienceProgression experienceProgression = new ExperienceProgression();
+        RunStatistics runStatistics = new RunStatistics();
+        GameController controller = new GameController(
+                world,
+                experienceProgression,
+                runStatistics
+        );
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(0, enemy.getHealth().getCurrentHealth()),
+                () -> assertTrue(enemy.isDead()),
+                () -> assertEquals(100,
+                        world.getPlayer().getHealth().getCurrentHealth()),
+                () -> assertEquals(List.of(), world.getProjectiles()),
+                () -> assertSame(experienceProgression,
+                        controller.getExperienceProgression()),
+                () -> assertSame(runStatistics, controller.getRunStatistics()),
+                () -> assertEquals(25,
+                        experienceProgression.getCurrentExperience()),
+                () -> assertEquals(1, runStatistics.getEnemiesDefeated()),
+                () -> assertEquals(25, runStatistics.getExperienceGained())
+        );
+    }
+
+    @Test
+    void deadEnemyCannotBeRewardedTwice() {
+        Enemy enemy = new Enemy(new Position(486.0, 500.0), 20, MOVEMENT_SPEED);
+        GameWorld world = createWorld(500.0, 500.0, enemy);
+        Projectile killingProjectile = projectileAt(
+                476.0, 500.0, 1.0, 0.0, 25, 100.0
+        );
+        Projectile laterProjectile = projectileAt(
+                476.0, 500.0, 1.0, 0.0, 25, 100.0
+        );
+        world.addProjectile(killingProjectile);
+        world.addProjectile(laterProjectile);
+        ExperienceProgression experienceProgression = new ExperienceProgression();
+        RunStatistics runStatistics = new RunStatistics();
+        GameController controller = new GameController(
+                world,
+                experienceProgression,
+                runStatistics
+        );
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertTrue(enemy.isDead()),
+                () -> assertEquals(List.of(laterProjectile), world.getProjectiles()),
+                () -> assertEquals(25,
+                        experienceProgression.getCurrentExperience()),
+                () -> assertEquals(1, runStatistics.getEnemiesDefeated()),
+                () -> assertEquals(25, runStatistics.getExperienceGained())
+        );
+    }
+
+    @Test
+    void twoEnemyKillsAccumulateRewards() {
+        Enemy firstEnemy = new Enemy(new Position(486.0, 500.0), 20, MOVEMENT_SPEED);
+        Enemy secondEnemy = new Enemy(new Position(500.0, 486.0), 20, MOVEMENT_SPEED);
+        GameWorld world = createWorld(500.0, 500.0, firstEnemy, secondEnemy);
+        world.addProjectile(projectileAt(
+                476.0, 500.0, 1.0, 0.0, 25, 100.0
+        ));
+        world.addProjectile(projectileAt(
+                500.0, 476.0, 0.0, 1.0, 25, 100.0
+        ));
+        ExperienceProgression experienceProgression = new ExperienceProgression();
+        RunStatistics runStatistics = new RunStatistics();
+        GameController controller = new GameController(
+                world,
+                experienceProgression,
+                runStatistics
+        );
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertTrue(firstEnemy.isDead()),
+                () -> assertTrue(secondEnemy.isDead()),
+                () -> assertEquals(50,
+                        experienceProgression.getCurrentExperience()),
+                () -> assertEquals(2, runStatistics.getEnemiesDefeated()),
+                () -> assertEquals(50, runStatistics.getExperienceGained())
+        );
+    }
+
+    @Test
+    void multipleNonLethalHitsAwardOnlyOnDeath() {
+        Enemy enemy = new Enemy(new Position(486.0, 500.0), 100, MOVEMENT_SPEED);
+        GameWorld world = createWorld(500.0, 500.0, enemy);
+        ExperienceProgression experienceProgression = new ExperienceProgression();
+        RunStatistics runStatistics = new RunStatistics();
+        GameController controller = new GameController(
+                world,
+                experienceProgression,
+                runStatistics
+        );
+
+        for (int hit = 0; hit < 3; hit++) {
+            world.addProjectile(projectileAt(
+                    476.0, 500.0, 1.0, 0.0, 25, 100.0
+            ));
+            controller.update(0.1);
+
+            assertAll(
+                    () -> assertEquals(0,
+                            experienceProgression.getCurrentExperience()),
+                    () -> assertEquals(0, runStatistics.getEnemiesDefeated()),
+                    () -> assertEquals(0, runStatistics.getExperienceGained())
+            );
+        }
+
+        world.addProjectile(projectileAt(
+                476.0, 500.0, 1.0, 0.0, 25, 100.0
+        ));
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertTrue(enemy.isDead()),
+                () -> assertEquals(25,
+                        experienceProgression.getCurrentExperience()),
+                () -> assertEquals(1, runStatistics.getEnemiesDefeated()),
+                () -> assertEquals(25, runStatistics.getExperienceGained())
+        );
+    }
+
+    @Test
+    void levelUpProducedByEnemyRewardRemainsPending() {
+        Enemy enemy = new Enemy(new Position(486.0, 500.0), 20, MOVEMENT_SPEED);
+        GameWorld world = createWorld(500.0, 500.0, enemy);
+        world.addProjectile(projectileAt(
+                476.0, 500.0, 1.0, 0.0, 25, 100.0
+        ));
+        ExperienceProgression experienceProgression = new ExperienceProgression();
+        experienceProgression.addExperience(75);
+        RunStatistics runStatistics = new RunStatistics();
+        GameController controller = new GameController(
+                world,
+                experienceProgression,
+                runStatistics
+        );
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(2, experienceProgression.getLevel()),
+                () -> assertEquals(0,
+                        experienceProgression.getCurrentExperience()),
+                () -> assertTrue(experienceProgression.hasPendingLevelUp()),
+                () -> assertEquals(1,
+                        experienceProgression.getPendingLevelUps()),
+                () -> assertEquals(1, runStatistics.getEnemiesDefeated()),
+                () -> assertEquals(25, runStatistics.getExperienceGained())
+        );
+    }
+
+    @Test
+    void projectileIgnoresDeadEnemy() {
+        Enemy enemy = new Enemy(new Position(486.0, 500.0), 100, MOVEMENT_SPEED);
+        enemy.takeDamage(100);
+        GameWorld world = createWorld(500.0, 500.0, enemy);
+        Projectile projectile = projectileAt(476.0, 500.0, 1.0, 0.0, 25, 100.0);
+        world.addProjectile(projectile);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(0, enemy.getHealth().getCurrentHealth()),
+                () -> assertEquals(List.of(projectile), world.getProjectiles())
+        );
+    }
+
+    @Test
+    void projectileHitsOnlyFirstLivingEnemyInWorldOrder() {
+        Enemy firstEnemy = new Enemy(new Position(486.0, 500.0), 100, MOVEMENT_SPEED);
+        Enemy secondEnemy = new Enemy(new Position(486.0, 500.0), 100, MOVEMENT_SPEED);
+        GameWorld world = createWorld(500.0, 500.0, firstEnemy, secondEnemy);
+        Projectile projectile = projectileAt(476.0, 500.0, 1.0, 0.0, 30, 100.0);
+        world.addProjectile(projectile);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(70, firstEnemy.getHealth().getCurrentHealth()),
+                () -> assertEquals(100, secondEnemy.getHealth().getCurrentHealth()),
+                () -> assertEquals(List.of(), world.getProjectiles())
+        );
+    }
+
+    @Test
+    void multipleProjectilesCanDamageSameEnemy() {
+        Enemy enemy = new Enemy(new Position(486.0, 500.0), 100, MOVEMENT_SPEED);
+        GameWorld world = createWorld(500.0, 500.0, enemy);
+        Projectile firstProjectile = projectileAt(
+                476.0, 500.0, 1.0, 0.0, 10, 100.0
+        );
+        Projectile secondProjectile = projectileAt(
+                496.0, 500.0, -1.0, 0.0, 10, 100.0
+        );
+        world.addProjectile(firstProjectile);
+        world.addProjectile(secondProjectile);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(80, enemy.getHealth().getCurrentHealth()),
+                () -> assertEquals(List.of(), world.getProjectiles())
+        );
+    }
+
+    @Test
+    void zeroDeltaDoesNotChangeProjectileState() {
+        Enemy enemy = new Enemy(new Position(486.0, 500.0), 100, MOVEMENT_SPEED);
+        GameWorld world = createWorld(500.0, 500.0, enemy);
+        Projectile projectile = projectileAt(486.0, 500.0, 1.0, 0.0, 25, 100.0);
+        world.addProjectile(projectile);
+        GameController controller = new GameController(world);
+
+        controller.update(0.0);
+
+        assertAll(
+                () -> assertEquals(new Position(486.0, 500.0),
+                        projectile.getPosition()),
+                () -> assertEquals(100, enemy.getHealth().getCurrentHealth()),
+                () -> assertEquals(List.of(projectile), world.getProjectiles())
+        );
+    }
+
+    @Test
+    void invalidDeltaDoesNotChangeProjectileEnemyOrRewardState() {
+        assertAll(
+                () -> assertInvalidDeltaDoesNotChangeProjectileState(-0.01),
+                () -> assertInvalidDeltaDoesNotChangeProjectileState(Double.NaN),
+                () -> assertInvalidDeltaDoesNotChangeProjectileState(
+                        Double.POSITIVE_INFINITY),
+                () -> assertInvalidDeltaDoesNotChangeProjectileState(
+                        Double.NEGATIVE_INFINITY)
+        );
+    }
+
+    @Test
     void rejectsNullWorld() {
         assertThrows(NullPointerException.class, () -> new GameController(null));
     }
@@ -686,6 +1059,52 @@ class GameControllerTest {
 
         controller.update(0.1);
         assertEquals(80, world.getPlayer().getHealth().getCurrentHealth());
+    }
+
+    private static void assertInvalidDeltaDoesNotChangeProjectileState(double invalidDelta) {
+        Enemy enemy = new Enemy(new Position(486.0, 500.0), 20, MOVEMENT_SPEED);
+        GameWorld world = createWorld(500.0, 500.0, enemy);
+        Projectile projectile = projectileAt(486.0, 500.0, 1.0, 0.0, 25, 100.0);
+        world.addProjectile(projectile);
+        ExperienceProgression experienceProgression = new ExperienceProgression();
+        RunStatistics runStatistics = new RunStatistics();
+        GameController controller = new GameController(
+                world,
+                experienceProgression,
+                runStatistics
+        );
+        Position initialPosition = projectile.getPosition();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> controller.update(invalidDelta));
+        assertAll(
+                () -> assertEquals(initialPosition, projectile.getPosition()),
+                () -> assertEquals(20, enemy.getHealth().getCurrentHealth()),
+                () -> assertEquals(List.of(projectile), world.getProjectiles()),
+                () -> assertEquals(100,
+                        world.getPlayer().getHealth().getCurrentHealth()),
+                () -> assertEquals(0,
+                        experienceProgression.getCurrentExperience()),
+                () -> assertEquals(0, runStatistics.getEnemiesDefeated()),
+                () -> assertEquals(0, runStatistics.getExperienceGained())
+        );
+    }
+
+    private static Projectile projectileAt(
+            double x,
+            double y,
+            double directionX,
+            double directionY,
+            int damage,
+            double movementSpeed
+    ) {
+        return new Projectile(
+                new Position(x, y),
+                directionX,
+                directionY,
+                damage,
+                movementSpeed
+        );
     }
 
     private static GameWorld createWorld(

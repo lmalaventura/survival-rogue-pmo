@@ -1,8 +1,5 @@
 package it.university.survivor.model;
 
-import it.university.survivor.model.Health;
-import it.university.survivor.model.Position;
-
 import java.util.Objects;
 
 public class Enemy {
