@@ -15,8 +15,8 @@ class DamageUpgradeTest {
                         5.0
                 );
 
-        DamageUpgrade upgrade =
-                new DamageUpgrade(5);
+        FlatDamageUpgrade upgrade =
+                new FlatDamageUpgrade(5);
 
         WeaponStats upgraded =
                 upgrade.apply(original);
@@ -35,8 +35,8 @@ class DamageUpgradeTest {
                         5.0
                 );
 
-        DamageUpgrade upgrade =
-                new DamageUpgrade(5);
+        FlatDamageUpgrade upgrade =
+                new FlatDamageUpgrade(5);
 
         WeaponStats upgraded =
                 upgrade.apply(original);
@@ -49,12 +49,46 @@ class DamageUpgradeTest {
     void shouldRejectNonPositiveBonus() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new DamageUpgrade(0)
+                () -> new FlatDamageUpgrade(0)
         );
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new DamageUpgrade(-5)
+                () -> new FlatDamageUpgrade(-5)
         );
     }
+@Test
+void shouldIncreaseDamageByPercentage() {
+    WeaponStats original =
+            new WeaponStats(
+                    1.0,
+                    10,
+                    5.0
+            );
+
+    PercentDamageUpgrade upgrade =
+            new PercentDamageUpgrade(0.10);
+
+    WeaponStats upgraded =
+            upgrade.apply(original);
+
+    assertEquals(11, upgraded.getDamage());
+  }
+  @Test
+void shouldRoundPercentageDamage() {
+    WeaponStats original =
+            new WeaponStats(
+                    1.0,
+                    15,
+                    5.0
+            );
+
+    PercentDamageUpgrade upgrade =
+            new PercentDamageUpgrade(0.10);
+
+    WeaponStats upgraded =
+            upgrade.apply(original);
+
+    assertEquals(17, upgraded.getDamage());
+}
 }

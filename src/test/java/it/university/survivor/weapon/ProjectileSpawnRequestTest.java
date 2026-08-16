@@ -71,6 +71,35 @@ class ProjectileSpawnRequestTest {
     }
 
     @Test
+    void shouldRejectZeroDirection() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new ProjectileSpawnRequest(
+                        new Position(0, 0),
+                        0.0,
+                        0.0,
+                        10,
+                        5.0
+                )
+        );
+    }
+
+    @Test
+    void shouldNormalizeDirection() {
+        ProjectileSpawnRequest request =
+                new ProjectileSpawnRequest(
+                        new Position(0, 0),
+                        3.0,
+                        4.0,
+                        10,
+                        5.0
+                );
+
+        assertEquals(0.6, request.directionX(), 1e-9);
+        assertEquals(0.8, request.directionY(), 1e-9);
+    }
+
+    @Test
     void shouldRejectInvalidDamage() {
         assertThrows(
                 IllegalArgumentException.class,
@@ -79,6 +108,17 @@ class ProjectileSpawnRequestTest {
                         1.0,
                         0.0,
                         0,
+                        5.0
+                )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new ProjectileSpawnRequest(
+                        new Position(0, 0),
+                        1.0,
+                        0.0,
+                        -1,
                         5.0
                 )
         );
@@ -94,6 +134,39 @@ class ProjectileSpawnRequestTest {
                         0.0,
                         10,
                         0.0
+                )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new ProjectileSpawnRequest(
+                        new Position(0, 0),
+                        1.0,
+                        0.0,
+                        10,
+                        -1.0
+                )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new ProjectileSpawnRequest(
+                        new Position(0, 0),
+                        1.0,
+                        0.0,
+                        10,
+                        Double.NaN
+                )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new ProjectileSpawnRequest(
+                        new Position(0, 0),
+                        1.0,
+                        0.0,
+                        10,
+                        Double.POSITIVE_INFINITY
                 )
         );
     }

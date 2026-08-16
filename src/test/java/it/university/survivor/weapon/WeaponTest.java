@@ -196,4 +196,44 @@ class WeaponTest {
                 () -> weapon.update(Double.NaN)
         );
     }
+    @Test
+void shouldUseUpgradedDamageForNextAttack() {
+    weapon.upgrade(new PercentDamageUpgrade(0.10));
+
+    Enemy enemy =
+            new Enemy(
+                    new Position(5, 0),
+                    100,
+                    1.0
+            );
+
+    Optional<ProjectileSpawnRequest> result =
+            weapon.attack(
+                    new Position(0, 0),
+                    List.of(enemy)
+            );
+
+    assertTrue(result.isPresent());
+    assertEquals(11, result.get().damage());
+}
+@Test
+void shouldUseUpgradedCooldownForNextAttack() {
+    weapon.upgrade(new PercentCooldownUpgrade(0.05));
+
+    Enemy enemy =
+            new Enemy(
+                    new Position(5, 0),
+                    100,
+                    1.0
+            );
+
+    Optional<ProjectileSpawnRequest> result =
+            weapon.attack(
+                    new Position(0, 0),
+                    List.of(enemy)
+            );
+
+    assertTrue(result.isPresent());
+    assertEquals(0.95, weapon.getCooldown(), 1e-9);
+}
 }

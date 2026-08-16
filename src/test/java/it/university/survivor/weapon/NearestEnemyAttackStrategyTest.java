@@ -79,7 +79,7 @@ class NearestEnemyAttackStrategyTest {
 
         Enemy aliveEnemy =
                 new Enemy(
-                        new Position(5, 0),
+                        new Position(0, 5),
                         100,
                         1.0
                 );
@@ -95,8 +95,8 @@ class NearestEnemyAttackStrategyTest {
 
         ProjectileSpawnRequest request = result.get();
 
-        assertEquals(1.0, request.directionX(), 1e-9);
-        assertEquals(0.0, request.directionY(), 1e-9);
+        assertEquals(0.0, request.directionX(), 1e-9);
+        assertEquals(1.0, request.directionY(), 1e-9);
     }
 
     @Test

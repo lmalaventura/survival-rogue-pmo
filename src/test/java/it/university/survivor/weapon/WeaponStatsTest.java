@@ -9,9 +9,10 @@ class WeaponStatsTest {
     @Test
     void shouldCreateValidWeaponStats() {
         WeaponStats stats = new WeaponStats(1.5, 20, 7.0);
+        int damage = stats.getDamage();
 
         assertEquals(1.5, stats.getCooldownSeconds());
-        assertEquals(20, stats.getDamage());
+        assertEquals(20, damage);
         assertEquals(7.0, stats.getProjectileSpeed());
     }
 
