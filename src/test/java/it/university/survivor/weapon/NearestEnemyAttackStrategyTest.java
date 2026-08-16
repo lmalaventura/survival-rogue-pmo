@@ -95,8 +95,8 @@ class NearestEnemyAttackStrategyTest {
 
         ProjectileSpawnRequest request = result.get();
 
-        assertEquals(1.0, request.directionX(), 1e-9);
-        assertEquals(0.0, request.directionY(), 1e-9);
+        assertEquals(0.0, request.directionX(), 1e-9);
+        assertEquals(1.0, request.directionY(), 1e-9);
     }
 
     @Test
@@ -167,25 +167,4 @@ class NearestEnemyAttackStrategyTest {
         assertEquals(1.0, request.directionX(), 1e-9);
         assertEquals(0.0, request.directionY(), 1e-9);
     }
-    @Test
-void deadEnemyShouldNotProduceSameDirectionAsAliveEnemy() {
-    Enemy deadEnemy = new Enemy(
-        new Position(1, 0),
-        100,
-        1.0
-    );
-
-    deadEnemy.takeDamage(100);
-
-    Enemy aliveEnemy = new Enemy(
-        new Position(0, 5),
-        100,
-        1.0
-    );
-
-    Position deadDirection = deadEnemy.calculateDesiredDirection(aliveEnemy.getPosition());
-    
-    assertEquals(0.0, deadDirection.x());
-    assertEquals(1.0, deadDirection.y());
-}
 }

@@ -14,8 +14,8 @@ class CooldownUpgradeTest {
                         5.0
                 );
 
-        CooldownUpgrade upgrade =
-                new CooldownUpgrade(0.2);
+        FlatCooldownUpgrade upgrade =
+                new FlatCooldownUpgrade(0.2);
 
         WeaponStats upgraded =
                 upgrade.apply(original);
@@ -34,8 +34,8 @@ class CooldownUpgradeTest {
                         5.0
                 );
 
-        CooldownUpgrade upgrade =
-                new CooldownUpgrade(0.2);
+        FlatCooldownUpgrade upgrade =
+                new FlatCooldownUpgrade(0.2);
 
         WeaponStats upgraded =
                 upgrade.apply(original);
@@ -54,12 +54,31 @@ class CooldownUpgradeTest {
                         5.0
                 );
 
-        CooldownUpgrade upgrade =
-                new CooldownUpgrade(1.0);
+        FlatCooldownUpgrade upgrade =
+                new FlatCooldownUpgrade(1.0);
 
         WeaponStats upgraded =
                 upgrade.apply(original);
 
         assertEquals(0.05, upgraded.getCooldownSeconds(), 1e-9);
     }
+    @Test
+void shouldReduceCooldownByPercentage() {
+    WeaponStats original =
+            new WeaponStats(
+                    1.0,
+                    10,
+                    5.0
+            );
+
+    PercentCooldownUpgrade upgrade =
+            new PercentCooldownUpgrade(0.05);
+
+    WeaponStats upgraded =
+            upgrade.apply(original);
+
+    assertEquals(0.95, upgraded.getCooldownSeconds(), 1e-9);
+    
+}
+
 }
