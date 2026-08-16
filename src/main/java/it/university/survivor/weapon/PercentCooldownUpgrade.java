@@ -1,6 +1,8 @@
 package it.university.survivor.weapon;
 public class PercentCooldownUpgrade implements WeaponUpgrade {
 
+    private static final double MIN_COOLDOWN_SECONDS = 0.05;
+
     private final double percentage;
 
     public PercentCooldownUpgrade(double percentage) {
@@ -22,7 +24,10 @@ public class PercentCooldownUpgrade implements WeaponUpgrade {
     @Override
     public WeaponStats apply(WeaponStats stats) {
         return new WeaponStats(
-                stats.getCooldownSeconds() * (1.0 - percentage),
+                Math.max(
+                        MIN_COOLDOWN_SECONDS,
+                        stats.getCooldownSeconds() * (1.0 - percentage)
+                ),
                 stats.getDamage(),
                 stats.getProjectileSpeed()
         );

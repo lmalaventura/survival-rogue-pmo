@@ -14,11 +14,13 @@ public class PercentDamageUpgrade implements WeaponUpgrade{
 
     @Override
     public WeaponStats apply(WeaponStats stats) {
-        double newDamage = stats.getDamage() * (1.0 + percentage);
+        int newDamage = (int) Math.round(
+                stats.getDamage() * (1.0 + percentage)
+        );
 
         return new WeaponStats(
                 stats.getCooldownSeconds(),
-                Math.round(newDamage),
+                newDamage,
                 stats.getProjectileSpeed()
         );
     }

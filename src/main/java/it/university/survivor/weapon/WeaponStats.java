@@ -3,10 +3,10 @@ package it.university.survivor.weapon;
 public final class WeaponStats {
 
     private final double cooldownSeconds;
-    private final double damage;
+    private final int damage;
     private final double projectileSpeed;
 
-    public WeaponStats(double cooldownSeconds, double damage, double projectileSpeed) {
+    public WeaponStats(double cooldownSeconds, int damage, double projectileSpeed) {
         if (!Double.isFinite(cooldownSeconds) || cooldownSeconds <= 0) {
             throw new IllegalArgumentException("Cooldown non valido.");
         }
@@ -26,7 +26,7 @@ public final class WeaponStats {
         return cooldownSeconds;
     }
 
-    public double getDamage() {
+    public int getDamage() {
         return damage;
     }
 

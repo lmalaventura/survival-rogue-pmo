@@ -81,4 +81,22 @@ void shouldReduceCooldownByPercentage() {
     
 }
 
+    @Test
+    void percentageUpgradeShouldRespectMinimumCooldown() {
+        WeaponStats original =
+                new WeaponStats(
+                        0.1,
+                        10,
+                        5.0
+                );
+
+        PercentCooldownUpgrade upgrade =
+                new PercentCooldownUpgrade(0.75);
+
+        WeaponStats upgraded =
+                upgrade.apply(original);
+
+        assertEquals(0.05, upgraded.getCooldownSeconds(), 1e-9);
+    }
+
 }
