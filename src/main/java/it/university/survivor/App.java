@@ -2,14 +2,17 @@ package it.university.survivor;
 
 import it.university.survivor.controller.GameController;
 import it.university.survivor.controller.MovementDirection;
-import it.university.survivor.model.Enemy;
 import it.university.survivor.model.ExperienceProgression;
 import it.university.survivor.model.GameWorld;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
 import it.university.survivor.model.RunStatistics;
-import it.university.survivor.model.enemy.EnemySpawner;
+import it.university.survivor.model.enemy.Wave;
+import it.university.survivor.model.enemy.WaveFactory;
 import it.university.survivor.view.GameView;
+import it.university.survivor.weapon.NearestEnemyAttackStrategy;
+import it.university.survivor.weapon.Weapon;
+import it.university.survivor.weapon.WeaponStats;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
@@ -24,8 +27,9 @@ public class App extends Application {
     private static final double ARENA_HEIGHT = 600.0;
     private static final int PLAYER_MAX_HEALTH = 100;
     private static final double PLAYER_MOVEMENT_SPEED = 200.0;
-    private static final int ENEMY_MAX_HEALTH = 100;
-    private static final double ENEMY_MOVEMENT_SPEED = 80.0;
+    private static final double WEAPON_COOLDOWN_SECONDS = 0.75;
+    private static final int WEAPON_DAMAGE = 25;
+    private static final double PROJECTILE_SPEED = 300.0;
 
     private GameLoop gameLoop;
 
@@ -36,16 +40,34 @@ public class App extends Application {
                 PLAYER_MAX_HEALTH,
                 PLAYER_MOVEMENT_SPEED
         );
-        EnemySpawner spawner = new EnemySpawner(ENEMY_MAX_HEALTH, ENEMY_MOVEMENT_SPEED);
-        List<Enemy> enemies = spawner.spawn(List.of(
+        Wave initialWave = WaveFactory.createWave(1, List.of(
                 new Position(24.0, 150.0),
                 new Position(400.0, 24.0),
                 new Position(776.0, 450.0)
         ));
-        GameWorld world = new GameWorld(ARENA_WIDTH, ARENA_HEIGHT, player, enemies);
+        GameWorld world = new GameWorld(
+                ARENA_WIDTH,
+                ARENA_HEIGHT,
+                player,
+                initialWave.getEnemies()
+        );
         ExperienceProgression progression = new ExperienceProgression();
         RunStatistics statistics = new RunStatistics();
-        GameController controller = new GameController(world, progression, statistics);
+        Weapon weapon = new Weapon(
+                new WeaponStats(
+                        WEAPON_COOLDOWN_SECONDS,
+                        WEAPON_DAMAGE,
+                        PROJECTILE_SPEED
+                ),
+                new NearestEnemyAttackStrategy()
+        );
+        GameController controller = new GameController(
+                world,
+                progression,
+                statistics,
+                weapon,
+                initialWave
+        );
         GameView view = new GameView(ARENA_WIDTH, ARENA_HEIGHT, progression);
         gameLoop = new GameLoop(world, controller, view);
 

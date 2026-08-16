@@ -278,6 +278,92 @@ class GameWorldTest {
     }
 
     @Test
+    void replacesEnemiesCompletelyPreservingOrderAndIdentity() {
+        Enemy previousEnemy = enemyAt(10.0, 20.0);
+        Enemy firstReplacement = enemyAt(30.0, 40.0);
+        Enemy secondReplacement = enemyAt(60.0, 70.0);
+        List<Enemy> replacements = new ArrayList<>(
+                List.of(firstReplacement, secondReplacement)
+        );
+        GameWorld world = worldWithEnemies(List.of(previousEnemy));
+
+        world.replaceEnemies(replacements);
+        replacements.clear();
+
+        assertAll(
+                () -> assertEquals(2, world.getEnemies().size()),
+                () -> assertSame(firstReplacement, world.getEnemies().get(0)),
+                () -> assertSame(secondReplacement, world.getEnemies().get(1))
+        );
+    }
+
+    @Test
+    void enemyListRemainsStructurallyUnmodifiableAfterReplacement() {
+        Enemy replacement = enemyAt(30.0, 40.0);
+        GameWorld world = worldWithEnemies(List.of(enemyAt(10.0, 20.0)));
+
+        world.replaceEnemies(List.of(replacement));
+
+        assertAll(
+                () -> assertThrows(UnsupportedOperationException.class,
+                        () -> world.getEnemies().add(enemyAt(50.0, 60.0))),
+                () -> assertThrows(UnsupportedOperationException.class,
+                        () -> world.getEnemies().remove(0)),
+                () -> assertThrows(UnsupportedOperationException.class,
+                        () -> world.getEnemies().set(0, enemyAt(50.0, 60.0))),
+                () -> assertSame(replacement, world.getEnemies().get(0))
+        );
+    }
+
+    @Test
+    void rejectsNullReplacementEnemyListWithoutChangingCurrentEnemies() {
+        Enemy currentEnemy = enemyAt(10.0, 20.0);
+        GameWorld world = worldWithEnemies(List.of(currentEnemy));
+
+        assertThrows(NullPointerException.class, () -> world.replaceEnemies(null));
+
+        assertAll(
+                () -> assertEquals(1, world.getEnemies().size()),
+                () -> assertSame(currentEnemy, world.getEnemies().get(0))
+        );
+    }
+
+    @Test
+    void rejectsNullReplacementEnemyAtomically() {
+        Enemy currentEnemy = enemyAt(10.0, 20.0);
+        List<Enemy> replacements = new ArrayList<>();
+        replacements.add(enemyAt(30.0, 40.0));
+        replacements.add(null);
+        GameWorld world = worldWithEnemies(List.of(currentEnemy));
+
+        assertThrows(NullPointerException.class, () -> world.replaceEnemies(replacements));
+
+        assertAll(
+                () -> assertEquals(1, world.getEnemies().size()),
+                () -> assertSame(currentEnemy, world.getEnemies().get(0))
+        );
+    }
+
+    @Test
+    void rejectsOutOfBoundsReplacementEnemyAtomically() {
+        Enemy currentEnemy = enemyAt(10.0, 20.0);
+        GameWorld world = worldWithEnemies(List.of(currentEnemy));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> world.replaceEnemies(List.of(
+                        enemyAt(30.0, 40.0),
+                        enemyAt(101.0, 40.0)
+                ))
+        );
+
+        assertAll(
+                () -> assertEquals(1, world.getEnemies().size()),
+                () -> assertSame(currentEnemy, world.getEnemies().get(0))
+        );
+    }
+
+    @Test
     void movesEnemyWithPositiveAndNegativeDeltas() {
         Enemy enemy = enemyAt(20.0, 30.0);
         GameWorld world = worldWithEnemies(List.of(enemy));
@@ -495,6 +581,17 @@ class GameWorldTest {
         world.addProjectile(projectile);
 
         world.removeProjectile(projectile);
+
+        assertEquals(List.of(), world.getProjectiles());
+    }
+
+    @Test
+    void clearsAllProjectiles() {
+        GameWorld world = worldWithEnemies(List.of());
+        world.addProjectile(projectileAt(20.0, 30.0));
+        world.addProjectile(projectileAt(40.0, 50.0));
+
+        world.clearProjectiles();
 
         assertEquals(List.of(), world.getProjectiles());
     }

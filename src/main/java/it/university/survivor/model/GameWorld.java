@@ -31,19 +31,12 @@ public final class GameWorld {
             throw new IllegalArgumentException("Player position must be within world bounds");
         }
 
-        List<Enemy> validatedEnemies = List.copyOf(
-                Objects.requireNonNull(enemies, "Enemies must not be null")
-        );
-        for (Enemy enemy : validatedEnemies) {
-            if (!isWithinBounds(enemy.getPosition(), width, height)) {
-                throw new IllegalArgumentException("Enemy position must be within world bounds");
-            }
-        }
+        List<Enemy> validatedEnemies = validateEnemies(enemies, width, height);
 
         this.width = width;
         this.height = height;
         this.player = validatedPlayer;
-        this.enemies = validatedEnemies;
+        this.enemies = new ArrayList<>(validatedEnemies);
     }
 
     public double getWidth() {
@@ -59,11 +52,18 @@ public final class GameWorld {
     }
 
     public List<Enemy> getEnemies() {
-        return enemies;
+        return Collections.unmodifiableList(enemies);
     }
 
     public List<Projectile> getProjectiles() {
         return Collections.unmodifiableList(projectiles);
+    }
+
+    public void replaceEnemies(List<Enemy> enemies) {
+        List<Enemy> validatedEnemies = validateEnemies(enemies, width, height);
+
+        this.enemies.clear();
+        this.enemies.addAll(validatedEnemies);
     }
 
     public void addProjectile(Projectile projectile) {
@@ -94,6 +94,10 @@ public final class GameWorld {
         }
 
         projectiles.remove(projectileIndex);
+    }
+
+    public void clearProjectiles() {
+        projectiles.clear();
     }
 
     public void movePlayerBy(double deltaX, double deltaY) {
@@ -152,6 +156,30 @@ public final class GameWorld {
         }
 
         return -1;
+    }
+
+    private static List<Enemy> validateEnemies(
+            List<Enemy> enemies,
+            double width,
+            double height
+    ) {
+        Objects.requireNonNull(enemies, "Enemies must not be null");
+
+        List<Enemy> validatedEnemies = new ArrayList<>(enemies.size());
+        for (Enemy enemy : enemies) {
+            Enemy validatedEnemy = Objects.requireNonNull(
+                    enemy,
+                    "Enemy must not be null"
+            );
+            if (!isWithinBounds(validatedEnemy.getPosition(), width, height)) {
+                throw new IllegalArgumentException(
+                        "Enemy position must be within world bounds"
+                );
+            }
+            validatedEnemies.add(validatedEnemy);
+        }
+
+        return validatedEnemies;
     }
 
     private static boolean isWithinBounds(Position position, double width, double height) {

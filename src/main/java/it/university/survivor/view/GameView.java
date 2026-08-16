@@ -1,5 +1,6 @@
 package it.university.survivor.view;
 
+import it.university.survivor.controller.RunState;
 import it.university.survivor.model.Enemy;
 import it.university.survivor.model.ExperienceProgression;
 import it.university.survivor.model.GameWorld;
@@ -7,6 +8,8 @@ import it.university.survivor.model.Health;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
 import it.university.survivor.model.Projectile;
+import it.university.survivor.model.enemy.Wave;
+import javafx.geometry.VPos;
 import javafx.scene.Parent;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -14,6 +17,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.scene.text.TextAlignment;
 
 import java.util.Objects;
 
@@ -41,12 +45,17 @@ public final class GameView {
     private static final double XP_BAR_INSET = 2.0;
     private static final double XP_LABEL_GAP = 6.0;
 
+    private static final int TOTAL_WAVES = 5;
+    private static final double WAVE_FONT_SIZE = 18.0;
+    private static final double RESULT_FONT_SIZE = 52.0;
+
     private static final Color HEART_EMPTY_COLOR = Color.rgb(62, 24, 32);
     private static final Color HEART_FILL_COLOR = Color.rgb(220, 38, 58);
     private static final Color HEART_OUTLINE_COLOR = Color.rgb(32, 10, 16);
     private static final Color XP_BACKGROUND_COLOR = Color.rgb(24, 30, 40);
     private static final Color XP_FILL_COLOR = Color.rgb(45, 132, 220);
     private static final Color HUD_OUTLINE_COLOR = Color.rgb(12, 16, 22);
+    private static final Color RESULT_OVERLAY_COLOR = Color.rgb(0, 0, 0, 0.58);
 
     private final Canvas canvas;
     private final Pane root;
@@ -91,8 +100,9 @@ public final class GameView {
         return root;
     }
 
-    public void render(GameWorld world) {
+    public void render(GameWorld world, Wave currentWave, RunState runState) {
         Objects.requireNonNull(world, "World must not be null");
+        Objects.requireNonNull(runState, "Run state must not be null");
 
         GraphicsContext graphics = canvas.getGraphicsContext2D();
         graphics.clearRect(0.0, 0.0, canvas.getWidth(), canvas.getHeight());
@@ -142,6 +152,53 @@ public final class GameView {
 
         drawHealthHud(graphics, player.getHealth());
         drawExperienceHud(graphics);
+        drawLifecycleFeedback(graphics, currentWave, runState);
+    }
+
+    private void drawLifecycleFeedback(
+            GraphicsContext graphics,
+            Wave currentWave,
+            RunState runState
+    ) {
+        if (runState == RunState.ACTIVE_WAVE) {
+            if (currentWave != null) {
+                drawWaveHud(graphics, currentWave);
+            }
+            return;
+        }
+
+        drawRunResultOverlay(graphics, runState);
+    }
+
+    private void drawWaveHud(GraphicsContext graphics, Wave currentWave) {
+        graphics.save();
+        graphics.setFill(Color.WHITE);
+        graphics.setFont(Font.font("System", FontWeight.BOLD, WAVE_FONT_SIZE));
+        graphics.setTextAlign(TextAlignment.CENTER);
+        graphics.setTextBaseline(VPos.TOP);
+        graphics.fillText(
+                "WAVE " + currentWave.getWaveNumber() + " / " + TOTAL_WAVES,
+                canvas.getWidth() / 2.0,
+                HUD_MARGIN
+        );
+        graphics.restore();
+    }
+
+    private void drawRunResultOverlay(GraphicsContext graphics, RunState runState) {
+        graphics.save();
+        graphics.setFill(RESULT_OVERLAY_COLOR);
+        graphics.fillRect(0.0, 0.0, canvas.getWidth(), canvas.getHeight());
+
+        graphics.setFill(Color.WHITE);
+        graphics.setFont(Font.font("System", FontWeight.BOLD, RESULT_FONT_SIZE));
+        graphics.setTextAlign(TextAlignment.CENTER);
+        graphics.setTextBaseline(VPos.CENTER);
+        graphics.fillText(
+                runState == RunState.VICTORY ? "VICTORY" : "DEFEAT",
+                canvas.getWidth() / 2.0,
+                canvas.getHeight() / 2.0
+        );
+        graphics.restore();
     }
 
     private void drawHealthHud(GraphicsContext graphics, Health health) {

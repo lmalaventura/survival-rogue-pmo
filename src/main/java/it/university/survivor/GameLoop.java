@@ -32,7 +32,7 @@ public final class GameLoop {
 
     public void start() {
         previousTimestamp = 0L;
-        view.render(world);
+        renderCurrentState();
         timer.start();
     }
 
@@ -55,6 +55,14 @@ public final class GameLoop {
         previousTimestamp = now;
 
         controller.update(deltaSeconds);
-        view.render(world);
+        renderCurrentState();
+    }
+
+    private void renderCurrentState() {
+        view.render(
+                world,
+                controller.getCurrentWave(),
+                controller.getRunState()
+        );
     }
 }
