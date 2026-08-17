@@ -3,10 +3,17 @@ package it.university.survivor.controller;
 import it.university.survivor.model.Enemy;
 import it.university.survivor.model.ExperienceProgression;
 import it.university.survivor.model.GameWorld;
+import it.university.survivor.model.Item;
+import it.university.survivor.model.ModifierType;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
 import it.university.survivor.model.Projectile;
+import it.university.survivor.model.Rarity;
 import it.university.survivor.model.RunStatistics;
+import it.university.survivor.model.StatModifier;
+import it.university.survivor.model.StatType;
+import it.university.survivor.model.UpgradeCatalog;
+import it.university.survivor.model.UpgradeChoiceSession;
 import it.university.survivor.model.enemy.Wave;
 import it.university.survivor.model.enemy.WaveConfig;
 import it.university.survivor.model.enemy.WaveProgression;
@@ -16,9 +23,14 @@ import it.university.survivor.weapon.WeaponStats;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -1564,7 +1576,8 @@ class GameControllerTest {
                 () -> assertEquals(
                         RunState.ACTIVE_WAVE,
                         controller.getRunState()
-                )
+                ),
+                () -> assertNull(controller.getCurrentUpgradeSession())
         );
     }
 
@@ -1600,7 +1613,8 @@ class GameControllerTest {
                 () -> assertEquals(
                         RunState.ACTIVE_WAVE,
                         controller.getRunState()
-                )
+                ),
+                () -> assertNull(controller.getCurrentUpgradeSession())
         );
     }
 
@@ -1698,6 +1712,444 @@ class GameControllerTest {
                 () -> assertEquals(List.of(), world.getProjectiles()),
                 () -> assertEquals(2,
                         controller.getCurrentWave().getWaveNumber())
+        );
+    }
+
+    @Test
+    void completedWaveWithPendingLevelUpEntersUpgradeSelection() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.MAX_HEALTH,
+                ModifierType.FLAT,
+                20.0,
+                1
+        );
+
+        UpgradeChoiceSession session = fixture.controller()
+                .getCurrentUpgradeSession();
+        assertAll(
+                () -> assertEquals(
+                        RunState.UPGRADE_SELECTION,
+                        fixture.controller().getRunState()
+                ),
+                () -> assertSame(
+                        fixture.completedWave(),
+                        fixture.controller().getCurrentWave()
+                ),
+                () -> assertEquals(
+                        fixture.completedWave().getEnemies(),
+                        fixture.world().getEnemies()
+                ),
+                () -> assertEquals(1,
+                        fixture.statistics().getWavesCompleted()),
+                () -> assertEquals(1,
+                        fixture.progression().getPendingLevelUps()),
+                () -> assertNotNull(session),
+                () -> assertEquals(3, session.getCurrentOptions().size())
+        );
+    }
+
+    @Test
+    void updateFreezesEntireSimulationDuringUpgradeSelection() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.MAX_HEALTH,
+                ModifierType.FLAT,
+                20.0,
+                1
+        );
+        Enemy livingEnemy = new Enemy(
+                fixture.world().getPlayer().getPosition(),
+                100,
+                MOVEMENT_SPEED
+        );
+        Projectile projectile = projectileAt(
+                100.0,
+                100.0,
+                1.0,
+                0.0,
+                10,
+                100.0
+        );
+        fixture.world().replaceEnemies(List.of(livingEnemy));
+        fixture.world().addProjectile(projectile);
+        fixture.controller().setDirectionActive(MovementDirection.RIGHT, true);
+
+        Position playerPosition = fixture.world().getPlayer().getPosition();
+        Position enemyPosition = livingEnemy.getPosition();
+        Position projectilePosition = projectile.getPosition();
+        double weaponCooldown = fixture.weapon().getCooldown();
+
+        fixture.controller().update(0.1);
+        fixture.controller().update(Double.NaN);
+
+        assertAll(
+                () -> assertEquals(
+                        playerPosition,
+                        fixture.world().getPlayer().getPosition()
+                ),
+                () -> assertEquals(enemyPosition, livingEnemy.getPosition()),
+                () -> assertEquals(projectilePosition, projectile.getPosition()),
+                () -> assertEquals(
+                        List.of(projectile),
+                        fixture.world().getProjectiles()
+                ),
+                () -> assertEquals(100,
+                        fixture.world().getPlayer().getHealth().getCurrentHealth()),
+                () -> assertEquals(
+                        weaponCooldown,
+                        fixture.weapon().getCooldown(),
+                        TOLERANCE
+                ),
+                () -> assertEquals(
+                        RunState.UPGRADE_SELECTION,
+                        fixture.controller().getRunState()
+                ),
+                () -> assertEquals(1,
+                        fixture.statistics().getWavesCompleted())
+        );
+    }
+
+    @Test
+    void successfulRerollsAreRecordedButUnavailableRerollIsNot() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.MAX_HEALTH,
+                ModifierType.FLAT,
+                20.0,
+                1
+        );
+        UpgradeChoiceSession session = fixture.controller()
+                .getCurrentUpgradeSession();
+
+        fixture.controller().rerollUpgradeChoices();
+        assertAll(
+                () -> assertEquals(1, session.getRemainingRerolls()),
+                () -> assertEquals(1,
+                        fixture.statistics().getRerollsUsed())
+        );
+
+        fixture.controller().rerollUpgradeChoices();
+        assertAll(
+                () -> assertEquals(0, session.getRemainingRerolls()),
+                () -> assertEquals(2,
+                        fixture.statistics().getRerollsUsed())
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                fixture.controller()::rerollUpgradeChoices
+        );
+        assertEquals(2, fixture.statistics().getRerollsUsed());
+    }
+
+    @Test
+    void selectedUpgradeIsRecordedConsumesPendingAndStartsNextWave() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.MAX_HEALTH,
+                ModifierType.FLAT,
+                20.0,
+                1
+        );
+        Item selectedItem = firstUpgrade(fixture);
+
+        fixture.controller().selectUpgrade(selectedItem);
+
+        assertAll(
+                () -> assertEquals(1,
+                        fixture.statistics().getUpgradesChosen()),
+                () -> assertEquals(
+                        List.of(selectedItem),
+                        fixture.statistics().getChosenItems()
+                ),
+                () -> assertFalse(
+                        fixture.progression().hasPendingLevelUp()),
+                () -> assertEquals(0,
+                        fixture.progression().getPendingLevelUps()),
+                () -> assertEquals(
+                        RunState.ACTIVE_WAVE,
+                        fixture.controller().getRunState()
+                ),
+                () -> assertNull(
+                        fixture.controller().getCurrentUpgradeSession()),
+                () -> assertEquals(2,
+                        fixture.controller().getCurrentWave().getWaveNumber()),
+                () -> assertEquals(
+                        fixture.controller().getCurrentWave().getEnemies(),
+                        fixture.world().getEnemies()
+                )
+        );
+    }
+
+    @Test
+    void acceptsUpgradeAlreadySelectedByViewSession() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.MAX_HEALTH,
+                ModifierType.FLAT,
+                20.0,
+                1
+        );
+        Item selectedItem = fixture.controller()
+                .getCurrentUpgradeSession()
+                .selectOption(0);
+
+        fixture.controller().selectUpgrade(selectedItem);
+
+        assertAll(
+                () -> assertEquals(
+                        RunState.ACTIVE_WAVE,
+                        fixture.controller().getRunState()
+                ),
+                () -> assertEquals(1,
+                        fixture.statistics().getUpgradesChosen()),
+                () -> assertEquals(
+                        List.of(selectedItem),
+                        fixture.statistics().getChosenItems()
+                ),
+                () -> assertEquals(0,
+                        fixture.progression().getPendingLevelUps())
+        );
+    }
+
+    @Test
+    void multiplePendingLevelUpsCreateConsecutiveUpgradeSessions() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.MAX_HEALTH,
+                ModifierType.FLAT,
+                10.0,
+                2
+        );
+        UpgradeChoiceSession firstSession = fixture.controller()
+                .getCurrentUpgradeSession();
+
+        fixture.controller().selectUpgrade(firstUpgrade(fixture));
+
+        UpgradeChoiceSession secondSession = fixture.controller()
+                .getCurrentUpgradeSession();
+        assertAll(
+                () -> assertEquals(
+                        RunState.UPGRADE_SELECTION,
+                        fixture.controller().getRunState()
+                ),
+                () -> assertNotNull(secondSession),
+                () -> assertNotSame(firstSession, secondSession),
+                () -> assertEquals(3,
+                        secondSession.getCurrentOptions().size()),
+                () -> assertEquals(2,
+                        secondSession.getRemainingRerolls()),
+                () -> assertEquals(1,
+                        fixture.progression().getPendingLevelUps()),
+                () -> assertEquals(1,
+                        fixture.statistics().getUpgradesChosen()),
+                () -> assertSame(
+                        fixture.completedWave(),
+                        fixture.controller().getCurrentWave()
+                )
+        );
+
+        fixture.controller().selectUpgrade(firstUpgrade(fixture));
+
+        assertAll(
+                () -> assertEquals(
+                        RunState.ACTIVE_WAVE,
+                        fixture.controller().getRunState()
+                ),
+                () -> assertNull(
+                        fixture.controller().getCurrentUpgradeSession()),
+                () -> assertEquals(0,
+                        fixture.progression().getPendingLevelUps()),
+                () -> assertEquals(2,
+                        fixture.statistics().getUpgradesChosen()),
+                () -> assertEquals(2,
+                        fixture.controller().getCurrentWave().getWaveNumber())
+        );
+    }
+
+    @Test
+    void appliesFlatMaximumHealthUpgradeUsingEffectiveValue() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.MAX_HEALTH,
+                ModifierType.FLAT,
+                20.0,
+                1,
+                0.80
+        );
+        fixture.world().getPlayer().getHealth().takeDamage(30);
+
+        Item selectedItem = firstUpgrade(fixture);
+        fixture.controller().selectUpgrade(selectedItem);
+
+        assertAll(
+                () -> assertEquals(Rarity.EPIC, selectedItem.rarity()),
+                () -> assertEquals(140,
+                        fixture.world().getPlayer().getHealth().getMaxHealth()),
+                () -> assertEquals(110,
+                        fixture.world().getPlayer().getHealth().getCurrentHealth())
+        );
+    }
+
+    @Test
+    void appliesPercentageMaximumHealthUpgradeUsingEffectiveValue() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.MAX_HEALTH,
+                ModifierType.PERCENTAGE,
+                0.10,
+                1,
+                0.80
+        );
+        fixture.world().getPlayer().getHealth().takeDamage(30);
+
+        fixture.controller().selectUpgrade(firstUpgrade(fixture));
+
+        assertAll(
+                () -> assertEquals(120,
+                        fixture.world().getPlayer().getHealth().getMaxHealth()),
+                () -> assertEquals(90,
+                        fixture.world().getPlayer().getHealth().getCurrentHealth())
+        );
+    }
+
+    @Test
+    void positiveMaximumHealthBonusRoundedToZeroStillIncreasesByOne() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.MAX_HEALTH,
+                ModifierType.FLAT,
+                0.10,
+                1
+        );
+
+        fixture.controller().selectUpgrade(firstUpgrade(fixture));
+
+        assertAll(
+                () -> assertEquals(101,
+                        fixture.world().getPlayer().getHealth().getMaxHealth()),
+                () -> assertEquals(101,
+                        fixture.world().getPlayer().getHealth().getCurrentHealth())
+        );
+    }
+
+    @Test
+    void appliesFlatDamageUpgradeToRuntimeWeapon() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.DAMAGE,
+                ModifierType.FLAT,
+                5.0,
+                1,
+                0.80
+        );
+
+        fixture.controller().selectUpgrade(firstUpgrade(fixture));
+
+        assertEquals(35, fixture.weapon().getCurrentStats().getDamage());
+    }
+
+    @Test
+    void appliesPercentageDamageUpgradeToRuntimeWeapon() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.DAMAGE,
+                ModifierType.PERCENTAGE,
+                0.20,
+                1,
+                0.80
+        );
+
+        fixture.controller().selectUpgrade(firstUpgrade(fixture));
+
+        assertEquals(35, fixture.weapon().getCurrentStats().getDamage());
+    }
+
+    @Test
+    void appliesFlatCooldownUpgradeToRuntimeWeapon() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.COOLDOWN,
+                ModifierType.FLAT,
+                -0.10,
+                1,
+                0.80
+        );
+
+        fixture.controller().selectUpgrade(firstUpgrade(fixture));
+
+        assertEquals(
+                0.55,
+                fixture.weapon().getCurrentStats().getCooldownSeconds(),
+                TOLERANCE
+        );
+    }
+
+    @Test
+    void appliesPercentageCooldownUpgradeToRuntimeWeapon() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.COOLDOWN,
+                ModifierType.PERCENTAGE,
+                -0.20,
+                1,
+                0.80
+        );
+
+        fixture.controller().selectUpgrade(firstUpgrade(fixture));
+
+        assertEquals(
+                0.45,
+                fixture.weapon().getCurrentStats().getCooldownSeconds(),
+                TOLERANCE
+        );
+    }
+
+    @Test
+    void rejectsUpgradeActionsOutsideUpgradeSelectionWithoutRecordingThem() {
+        GameWorld world = createWorld(500.0, 500.0);
+        GameController controller = new GameController(world);
+        Item item = new Item(
+                "Test upgrade",
+                Rarity.COMMON,
+                new StatModifier(StatType.MAX_HEALTH, ModifierType.FLAT, 10.0)
+        );
+
+        assertAll(
+                () -> assertThrows(
+                        IllegalStateException.class,
+                        () -> controller.selectUpgrade(item)
+                ),
+                () -> assertThrows(
+                        IllegalStateException.class,
+                        controller::rerollUpgradeChoices
+                ),
+                () -> assertEquals(0,
+                        controller.getRunStatistics().getUpgradesChosen()),
+                () -> assertEquals(0,
+                        controller.getRunStatistics().getRerollsUsed()),
+                () -> assertNull(controller.getCurrentUpgradeSession())
+        );
+    }
+
+    @Test
+    void completedWaveFivePrioritizesVictoryOverPendingUpgrade() {
+        Enemy enemy = deadEnemyAt(900.0, 900.0);
+        GameWorld world = createWorld(500.0, 500.0, enemy);
+        Wave waveFive = new Wave(5, List.of(enemy));
+        ExperienceProgression progression = progressionWithPendingLevelUps(1);
+        RunStatistics statistics = new RunStatistics();
+        Weapon weapon = createWeapon(0.75, 25, 300.0);
+        GameController controller = createDeterministicUpgradeController(
+                world,
+                progression,
+                statistics,
+                weapon,
+                waveFive,
+                StatType.MAX_HEALTH,
+                ModifierType.FLAT,
+                20.0
+        );
+
+        controller.update(0.1);
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(RunState.VICTORY, controller.getRunState()),
+                () -> assertSame(waveFive, controller.getCurrentWave()),
+                () -> assertNull(controller.getCurrentUpgradeSession()),
+                () -> assertEquals(1, progression.getPendingLevelUps()),
+                () -> assertEquals(1, statistics.getWavesCompleted()),
+                () -> assertEquals(0, statistics.getUpgradesChosen()),
+                () -> assertEquals(0, statistics.getRerollsUsed())
         );
     }
 
@@ -1967,6 +2419,158 @@ class GameControllerTest {
                 () -> assertEquals(0, runStatistics.getEnemiesDefeated()),
                 () -> assertEquals(0, runStatistics.getExperienceGained())
         );
+    }
+
+    private static UpgradeFixture enterUpgradeSelection(
+            StatType statType,
+            ModifierType modifierType,
+            double baseValue,
+            int pendingLevelUps
+    ) {
+        return enterUpgradeSelection(
+                statType,
+                modifierType,
+                baseValue,
+                pendingLevelUps,
+                0.0
+        );
+    }
+
+    private static UpgradeFixture enterUpgradeSelection(
+            StatType statType,
+            ModifierType modifierType,
+            double baseValue,
+            int pendingLevelUps,
+            double rarityRoll
+    ) {
+        Enemy completedEnemy = deadEnemyAt(100.0, 100.0);
+        GameWorld world = createWorld(500.0, 500.0, completedEnemy);
+        Wave completedWave = new Wave(1, List.of(completedEnemy));
+        ExperienceProgression progression = progressionWithPendingLevelUps(
+                pendingLevelUps
+        );
+        RunStatistics statistics = new RunStatistics();
+        Weapon weapon = createWeapon(0.75, 25, 300.0);
+        GameController controller = createDeterministicUpgradeController(
+                world,
+                progression,
+                statistics,
+                weapon,
+                completedWave,
+                statType,
+                modifierType,
+                baseValue,
+                rarityRoll
+        );
+
+        controller.update(0.1);
+
+        return new UpgradeFixture(
+                world,
+                progression,
+                statistics,
+                weapon,
+                completedWave,
+                controller
+        );
+    }
+
+    private static GameController createDeterministicUpgradeController(
+            GameWorld world,
+            ExperienceProgression progression,
+            RunStatistics statistics,
+            Weapon weapon,
+            Wave wave,
+            StatType statType,
+            ModifierType modifierType,
+            double baseValue
+    ) {
+        return createDeterministicUpgradeController(
+                world,
+                progression,
+                statistics,
+                weapon,
+                wave,
+                statType,
+                modifierType,
+                baseValue,
+                0.0
+        );
+    }
+
+    private static GameController createDeterministicUpgradeController(
+            GameWorld world,
+            ExperienceProgression progression,
+            RunStatistics statistics,
+            Weapon weapon,
+            Wave wave,
+            StatType statType,
+            ModifierType modifierType,
+            double baseValue,
+            double rarityRoll
+    ) {
+        StatModifier modifier = new StatModifier(
+                statType,
+                modifierType,
+                baseValue
+        );
+        UpgradeCatalog catalog = new UpgradeCatalog(List.of(
+                new UpgradeCatalog.Template("Test upgrade A", modifier),
+                new UpgradeCatalog.Template("Test upgrade B", modifier),
+                new UpgradeCatalog.Template("Test upgrade C", modifier)
+        ));
+        Random deterministicRarityRandom = new Random(42L) {
+            @Override
+            public double nextDouble() {
+                return rarityRoll;
+            }
+        };
+
+        return new GameController(
+                world,
+                progression,
+                statistics,
+                weapon,
+                wave,
+                catalog,
+                deterministicRarityRandom
+        );
+    }
+
+    private static ExperienceProgression progressionWithPendingLevelUps(
+            int pendingLevelUps
+    ) {
+        if (pendingLevelUps <= 0) {
+            throw new IllegalArgumentException(
+                    "Pending level-up count must be positive"
+            );
+        }
+
+        int requiredExperience = 0;
+        for (int level = 1; level <= pendingLevelUps; level++) {
+            requiredExperience += 100 + 25 * (level - 1);
+        }
+
+        ExperienceProgression progression = new ExperienceProgression();
+        progression.addExperience(requiredExperience);
+        return progression;
+    }
+
+    private static Item firstUpgrade(UpgradeFixture fixture) {
+        return fixture.controller()
+                .getCurrentUpgradeSession()
+                .getCurrentOptions()
+                .get(0);
+    }
+
+    private record UpgradeFixture(
+            GameWorld world,
+            ExperienceProgression progression,
+            RunStatistics statistics,
+            Weapon weapon,
+            Wave completedWave,
+            GameController controller
+    ) {
     }
 
     private static Projectile projectileAt(

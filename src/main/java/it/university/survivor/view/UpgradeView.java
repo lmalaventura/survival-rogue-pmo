@@ -19,12 +19,25 @@ public final class UpgradeView extends VBox {
 
     private final UpgradeChoiceSession session;
     private final UpgradeSelectionHandler handler;
+    private final Runnable rerollHandler;
     private final VBox optionsContainer;
     private final Button rerollButton;
 
     public UpgradeView(UpgradeChoiceSession session, UpgradeSelectionHandler handler) {
+        this(session, handler, () -> session.reroll());
+    }
+
+    public UpgradeView(
+            UpgradeChoiceSession session,
+            UpgradeSelectionHandler handler,
+            Runnable rerollHandler
+    ) {
         this.session = Objects.requireNonNull(session, "Session must not be null");
         this.handler = Objects.requireNonNull(handler, "Handler must not be null");
+        this.rerollHandler = Objects.requireNonNull(
+                rerollHandler,
+                "Reroll handler must not be null"
+        );
         
         setSpacing(15);
         setAlignment(Pos.CENTER);
@@ -43,7 +56,7 @@ public final class UpgradeView extends VBox {
         rerollButton.setStyle("-fx-font-size: 13px; -fx-background-color: #555555; -fx-text-fill: white; -fx-cursor: hand;");
         rerollButton.setOnAction(e -> {
             if(session.getRemainingRerolls() > 0 &&!session.isSelectionMade()) {
-                session.reroll();
+                rerollHandler.run();
                 refreshView();
             }
         });

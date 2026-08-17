@@ -167,7 +167,9 @@ public final class GameView {
             return;
         }
 
-        drawRunResultOverlay(graphics, runState);
+        if (runState == RunState.VICTORY || runState == RunState.DEFEAT) {
+            drawRunResultOverlay(graphics, runState);
+        }
     }
 
     private void drawWaveHud(GraphicsContext graphics, Wave currentWave) {

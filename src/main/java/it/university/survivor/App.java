@@ -2,20 +2,24 @@ package it.university.survivor;
 
 import it.university.survivor.controller.GameController;
 import it.university.survivor.controller.MovementDirection;
+import it.university.survivor.controller.RunState;
 import it.university.survivor.model.ExperienceProgression;
 import it.university.survivor.model.GameWorld;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
 import it.university.survivor.model.RunStatistics;
+import it.university.survivor.model.UpgradeChoiceSession;
 import it.university.survivor.model.enemy.Wave;
 import it.university.survivor.model.enemy.WaveFactory;
 import it.university.survivor.view.GameView;
+import it.university.survivor.view.UpgradeView;
 import it.university.survivor.weapon.NearestEnemyAttackStrategy;
 import it.university.survivor.weapon.Weapon;
 import it.university.survivor.weapon.WeaponStats;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
 import java.util.EnumSet;
@@ -32,6 +36,8 @@ public class App extends Application {
     private static final double PROJECTILE_SPEED = 300.0;
 
     private GameLoop gameLoop;
+    private UpgradeChoiceSession displayedUpgradeSession;
+    private UpgradeView displayedUpgradeView;
 
     @Override
     public void start(Stage primaryStage) {
@@ -69,9 +75,15 @@ public class App extends Application {
                 initialWave
         );
         GameView view = new GameView(ARENA_WIDTH, ARENA_HEIGHT, progression);
-        gameLoop = new GameLoop(world, controller, view);
+        StackPane sceneRoot = new StackPane(view.getRoot());
+        gameLoop = new GameLoop(
+                world,
+                controller,
+                view,
+                () -> synchronizeUpgradeOverlay(sceneRoot, controller)
+        );
 
-        Scene scene = new Scene(view.getRoot(), ARENA_WIDTH, ARENA_HEIGHT);
+        Scene scene = new Scene(sceneRoot, ARENA_WIDTH, ARENA_HEIGHT);
         EnumSet<KeyCode> pressedKeys = EnumSet.noneOf(KeyCode.class);
 
         scene.setOnKeyPressed(event -> {
@@ -107,6 +119,42 @@ public class App extends Application {
 
     public static void main(String[] args) {
         launch(args);
+    }
+
+    private void synchronizeUpgradeOverlay(
+            StackPane sceneRoot,
+            GameController controller
+    ) {
+        UpgradeChoiceSession currentSession = controller.getCurrentUpgradeSession();
+        if (controller.getRunState() != RunState.UPGRADE_SELECTION
+                || currentSession == null) {
+            removeUpgradeOverlay(sceneRoot);
+            return;
+        }
+
+        if (currentSession == displayedUpgradeSession) {
+            return;
+        }
+
+        removeUpgradeOverlay(sceneRoot);
+        displayedUpgradeSession = currentSession;
+        displayedUpgradeView = new UpgradeView(
+                currentSession,
+                item -> {
+                    controller.selectUpgrade(item);
+                    synchronizeUpgradeOverlay(sceneRoot, controller);
+                },
+                controller::rerollUpgradeChoices
+        );
+        sceneRoot.getChildren().add(displayedUpgradeView);
+    }
+
+    private void removeUpgradeOverlay(StackPane sceneRoot) {
+        if (displayedUpgradeView != null) {
+            sceneRoot.getChildren().remove(displayedUpgradeView);
+        }
+        displayedUpgradeView = null;
+        displayedUpgradeSession = null;
     }
 
     private static void updateLogicalDirections(

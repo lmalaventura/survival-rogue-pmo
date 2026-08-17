@@ -31,6 +31,60 @@ class HealthTest {
     }
 
     @Test
+    void increasesMaximumAndCurrentHealthByTheSameAmount() {
+        Health health = new Health(100);
+        health.takeDamage(40);
+
+        health.increaseMaxHealth(25);
+
+        assertAll(
+                () -> assertEquals(125, health.getMaxHealth()),
+                () -> assertEquals(85, health.getCurrentHealth()),
+                () -> assertTrue(health.isAlive())
+        );
+    }
+
+    @Test
+    void keepsFullHealthAtTheNewMaximum() {
+        Health health = new Health(100);
+
+        health.increaseMaxHealth(30);
+
+        assertAll(
+                () -> assertEquals(130, health.getMaxHealth()),
+                () -> assertEquals(130, health.getCurrentHealth())
+        );
+    }
+
+    @Test
+    void rejectsNonPositiveMaximumHealthIncreaseWithoutChangingState() {
+        Health health = new Health(100);
+        health.takeDamage(20);
+
+        assertAll(
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> health.increaseMaxHealth(0)),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> health.increaseMaxHealth(-1)),
+                () -> assertEquals(100, health.getMaxHealth()),
+                () -> assertEquals(80, health.getCurrentHealth())
+        );
+    }
+
+    @Test
+    void rejectsOverflowWithoutChangingState() {
+        Health health = new Health(Integer.MAX_VALUE);
+        health.takeDamage(1);
+
+        assertThrows(IllegalArgumentException.class, () -> health.increaseMaxHealth(1));
+
+        assertAll(
+                () -> assertEquals(Integer.MAX_VALUE, health.getMaxHealth()),
+                () -> assertEquals(Integer.MAX_VALUE - 1, health.getCurrentHealth())
+        );
+    }
+
+    @Test
     void appliesPositiveDamageAndAcceptsZero() {
         Health health = new Health(100);
 

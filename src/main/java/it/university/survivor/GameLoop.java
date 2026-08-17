@@ -14,14 +14,29 @@ public final class GameLoop {
     private final GameWorld world;
     private final GameController controller;
     private final GameView view;
+    private final Runnable uiSynchronizer;
     private final AnimationTimer timer;
 
     private long previousTimestamp;
 
     public GameLoop(GameWorld world, GameController controller, GameView view) {
+        this(world, controller, view, () -> {
+        });
+    }
+
+    public GameLoop(
+            GameWorld world,
+            GameController controller,
+            GameView view,
+            Runnable uiSynchronizer
+    ) {
         this.world = Objects.requireNonNull(world, "World must not be null");
         this.controller = Objects.requireNonNull(controller, "Controller must not be null");
         this.view = Objects.requireNonNull(view, "View must not be null");
+        this.uiSynchronizer = Objects.requireNonNull(
+                uiSynchronizer,
+                "UI synchronizer must not be null"
+        );
         this.timer = new AnimationTimer() {
             @Override
             public void handle(long now) {
@@ -64,5 +79,6 @@ public final class GameLoop {
                 controller.getCurrentWave(),
                 controller.getRunState()
         );
+        uiSynchronizer.run();
     }
 }

@@ -3,14 +3,23 @@ package it.university.survivor.controller;
 import it.university.survivor.model.Enemy;
 import it.university.survivor.model.ExperienceProgression;
 import it.university.survivor.model.GameWorld;
+import it.university.survivor.model.Item;
+import it.university.survivor.model.ModifierType;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
 import it.university.survivor.model.Projectile;
 import it.university.survivor.model.RunStatistics;
+import it.university.survivor.model.StatModifier;
+import it.university.survivor.model.UpgradeCatalog;
+import it.university.survivor.model.UpgradeChoiceSession;
 import it.university.survivor.model.enemy.Wave;
 import it.university.survivor.model.enemy.WaveConfig;
 import it.university.survivor.model.enemy.WaveFactory;
 import it.university.survivor.model.enemy.WaveProgression;
+import it.university.survivor.weapon.FlatCooldownUpgrade;
+import it.university.survivor.weapon.FlatDamageUpgrade;
+import it.university.survivor.weapon.PercentCooldownUpgrade;
+import it.university.survivor.weapon.PercentDamageUpgrade;
 import it.university.survivor.weapon.ProjectileSpawnRequest;
 import it.university.survivor.weapon.Weapon;
 
@@ -19,6 +28,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
 
 public final class GameController {
 
@@ -38,8 +48,11 @@ public final class GameController {
     private final ExperienceProgression experienceProgression;
     private final RunStatistics runStatistics;
     private final Optional<Weapon> weapon;
+    private final UpgradeCatalog upgradeCatalog;
+    private final Random upgradeRandom;
     private Wave currentWave;
     private RunState runState;
+    private UpgradeChoiceSession currentUpgradeSession;
     private final EnumSet<MovementDirection> activeDirections =
             EnumSet.noneOf(MovementDirection.class);
     private double playerHitInvulnerabilityRemaining = 0.0;
@@ -50,7 +63,9 @@ public final class GameController {
                 new ExperienceProgression(),
                 new RunStatistics(),
                 Optional.empty(),
-                null
+                null,
+                new UpgradeCatalog(),
+                new Random()
         );
     }
 
@@ -60,7 +75,9 @@ public final class GameController {
                 new ExperienceProgression(),
                 new RunStatistics(),
                 Optional.empty(),
-                Objects.requireNonNull(initialWave, "Initial wave must not be null")
+                Objects.requireNonNull(initialWave, "Initial wave must not be null"),
+                new UpgradeCatalog(),
+                new Random()
         );
     }
 
@@ -74,7 +91,9 @@ public final class GameController {
                 experienceProgression,
                 runStatistics,
                 Optional.empty(),
-                null
+                null,
+                new UpgradeCatalog(),
+                new Random()
         );
     }
 
@@ -91,7 +110,9 @@ public final class GameController {
                 Optional.of(
                         Objects.requireNonNull(weapon, "Weapon must not be null")
                 ),
-                null
+                null,
+                new UpgradeCatalog(),
+                new Random()
         );
     }
 
@@ -109,7 +130,29 @@ public final class GameController {
                 Optional.of(
                         Objects.requireNonNull(weapon, "Weapon must not be null")
                 ),
-                Objects.requireNonNull(initialWave, "Initial wave must not be null")
+                Objects.requireNonNull(initialWave, "Initial wave must not be null"),
+                new UpgradeCatalog(),
+                new Random()
+        );
+    }
+
+    GameController(
+            GameWorld world,
+            ExperienceProgression experienceProgression,
+            RunStatistics runStatistics,
+            Weapon weapon,
+            Wave initialWave,
+            UpgradeCatalog upgradeCatalog,
+            Random upgradeRandom
+    ) {
+        this(
+                world,
+                experienceProgression,
+                runStatistics,
+                Optional.of(Objects.requireNonNull(weapon, "Weapon must not be null")),
+                Objects.requireNonNull(initialWave, "Initial wave must not be null"),
+                upgradeCatalog,
+                upgradeRandom
         );
     }
 
@@ -118,7 +161,9 @@ public final class GameController {
             ExperienceProgression experienceProgression,
             RunStatistics runStatistics,
             Optional<Weapon> weapon,
-            Wave currentWave
+            Wave currentWave,
+            UpgradeCatalog upgradeCatalog,
+            Random upgradeRandom
     ) {
         this.world = Objects.requireNonNull(world, "World must not be null");
         this.experienceProgression = Objects.requireNonNull(
@@ -130,8 +175,17 @@ public final class GameController {
                 "Run statistics must not be null"
         );
         this.weapon = Objects.requireNonNull(weapon, "Weapon must not be null");
+        this.upgradeCatalog = Objects.requireNonNull(
+                upgradeCatalog,
+                "Upgrade catalog must not be null"
+        );
+        this.upgradeRandom = Objects.requireNonNull(
+                upgradeRandom,
+                "Upgrade random must not be null"
+        );
         this.currentWave = currentWave;
         this.runState = RunState.ACTIVE_WAVE;
+        this.currentUpgradeSession = null;
     }
 
     public ExperienceProgression getExperienceProgression() {
@@ -148,6 +202,210 @@ public final class GameController {
 
     public RunState getRunState() {
         return runState;
+    }
+
+    public UpgradeChoiceSession getCurrentUpgradeSession() {
+        return currentUpgradeSession;
+    }
+
+    public void selectUpgrade(Item item) {
+        Objects.requireNonNull(item, "Item must not be null");
+        UpgradeChoiceSession session = requireUpgradeSelection();
+        if (!experienceProgression.hasPendingLevelUp()) {
+            throw new IllegalStateException("No pending level-up is available");
+        }
+
+        int optionIndex = findUpgradeOptionIndex(session, item);
+        if (optionIndex < 0) {
+            throw new IllegalArgumentException("Item does not belong to the current session");
+        }
+
+        if (session.isSelectionMade() && !session.getSelectedItem().equals(item)) {
+            throw new IllegalStateException("A different upgrade has already been selected");
+        }
+
+        validateUpgradeApplication(item);
+        Item selectedItem = session.isSelectionMade()
+                ? session.getSelectedItem()
+                : session.selectOption(optionIndex);
+        applyUpgrade(selectedItem);
+        runStatistics.recordUpgradeSelected(selectedItem);
+
+        if (!experienceProgression.consumePendingLevelUp()) {
+            throw new IllegalStateException("Pending level-up could not be consumed");
+        }
+
+        if (experienceProgression.hasPendingLevelUp()) {
+            currentUpgradeSession = createUpgradeChoiceSession();
+            return;
+        }
+
+        currentUpgradeSession = null;
+        startNextWave();
+    }
+
+    public void rerollUpgradeChoices() {
+        UpgradeChoiceSession session = requireUpgradeSelection();
+        session.reroll();
+        runStatistics.recordReroll();
+    }
+
+    private UpgradeChoiceSession requireUpgradeSelection() {
+        if (runState != RunState.UPGRADE_SELECTION || currentUpgradeSession == null) {
+            throw new IllegalStateException("No upgrade selection is active");
+        }
+        return currentUpgradeSession;
+    }
+
+    private static int findUpgradeOptionIndex(
+            UpgradeChoiceSession session,
+            Item item
+    ) {
+        List<Item> options = session.getCurrentOptions();
+        for (int index = 0; index < options.size(); index++) {
+            if (options.get(index) == item) {
+                return index;
+            }
+        }
+        return options.indexOf(item);
+    }
+
+    private void validateUpgradeApplication(Item item) {
+        StatModifier modifier = item.baseModifier();
+        double effectiveValue = item.getEffectiveValue();
+        if (!Double.isFinite(effectiveValue)) {
+            throw new IllegalArgumentException("Effective upgrade value must be finite");
+        }
+
+        switch (modifier.statType()) {
+            case MAX_HEALTH -> validateMaxHealthUpgrade(modifier, effectiveValue);
+            case DAMAGE -> validateDamageUpgrade(modifier, effectiveValue);
+            case COOLDOWN -> validateCooldownUpgrade(modifier, effectiveValue);
+        }
+    }
+
+    private void validateMaxHealthUpgrade(
+            StatModifier modifier,
+            double effectiveValue
+    ) {
+        int increment = calculateMaxHealthIncrement(modifier, effectiveValue);
+        int currentMaximum = world.getPlayer().getHealth().getMaxHealth();
+        int currentHealth = world.getPlayer().getHealth().getCurrentHealth();
+        try {
+            Math.addExact(currentMaximum, increment);
+            Math.addExact(currentHealth, increment);
+        } catch (ArithmeticException exception) {
+            throw new IllegalArgumentException("Maximum health upgrade is too large", exception);
+        }
+    }
+
+    private void validateDamageUpgrade(
+            StatModifier modifier,
+            double effectiveValue
+    ) {
+        Weapon activeWeapon = requireWeaponForUpgrade();
+        if (modifier.modifierType() == ModifierType.FLAT) {
+            int bonus = roundPositiveIncrement(effectiveValue, "Damage bonus");
+            try {
+                Math.addExact(activeWeapon.getCurrentStats().getDamage(), bonus);
+            } catch (ArithmeticException exception) {
+                throw new IllegalArgumentException("Damage upgrade is too large", exception);
+            }
+            return;
+        }
+
+        requirePositiveFinite(effectiveValue, "Damage percentage");
+        double upgradedDamage = activeWeapon.getCurrentStats().getDamage()
+                * (1.0 + effectiveValue);
+        if (!Double.isFinite(upgradedDamage)
+                || Math.round(upgradedDamage) > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Damage upgrade is too large");
+        }
+    }
+
+    private void validateCooldownUpgrade(
+            StatModifier modifier,
+            double effectiveValue
+    ) {
+        requireWeaponForUpgrade();
+        double reduction = Math.abs(effectiveValue);
+        requirePositiveFinite(reduction, "Cooldown reduction");
+        if (modifier.modifierType() == ModifierType.PERCENTAGE && reduction >= 1.0) {
+            throw new IllegalArgumentException(
+                    "Cooldown percentage reduction must be less than one"
+            );
+        }
+    }
+
+    private void applyUpgrade(Item item) {
+        StatModifier modifier = item.baseModifier();
+        double effectiveValue = item.getEffectiveValue();
+
+        switch (modifier.statType()) {
+            case MAX_HEALTH -> world.getPlayer().getHealth().increaseMaxHealth(
+                    calculateMaxHealthIncrement(modifier, effectiveValue)
+            );
+            case DAMAGE -> applyDamageUpgrade(modifier, effectiveValue);
+            case COOLDOWN -> applyCooldownUpgrade(modifier, effectiveValue);
+        }
+    }
+
+    private int calculateMaxHealthIncrement(
+            StatModifier modifier,
+            double effectiveValue
+    ) {
+        double rawIncrement = modifier.modifierType() == ModifierType.FLAT
+                ? effectiveValue
+                : world.getPlayer().getHealth().getMaxHealth() * effectiveValue;
+        return roundPositiveIncrement(rawIncrement, "Maximum health bonus");
+    }
+
+    private void applyDamageUpgrade(
+            StatModifier modifier,
+            double effectiveValue
+    ) {
+        Weapon activeWeapon = requireWeaponForUpgrade();
+        if (modifier.modifierType() == ModifierType.FLAT) {
+            activeWeapon.upgrade(new FlatDamageUpgrade(
+                    roundPositiveIncrement(effectiveValue, "Damage bonus")
+            ));
+        } else {
+            activeWeapon.upgrade(new PercentDamageUpgrade(effectiveValue));
+        }
+    }
+
+    private void applyCooldownUpgrade(
+            StatModifier modifier,
+            double effectiveValue
+    ) {
+        Weapon activeWeapon = requireWeaponForUpgrade();
+        double reduction = Math.abs(effectiveValue);
+        if (modifier.modifierType() == ModifierType.FLAT) {
+            activeWeapon.upgrade(new FlatCooldownUpgrade(reduction));
+        } else {
+            activeWeapon.upgrade(new PercentCooldownUpgrade(reduction));
+        }
+    }
+
+    private Weapon requireWeaponForUpgrade() {
+        return weapon.orElseThrow(() -> new IllegalStateException(
+                "A Weapon is required for this upgrade"
+        ));
+    }
+
+    private static int roundPositiveIncrement(double value, String description) {
+        requirePositiveFinite(value, description);
+        long roundedValue = Math.max(1L, Math.round(value));
+        if (roundedValue > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(description + " is too large");
+        }
+        return (int) roundedValue;
+    }
+
+    private static void requirePositiveFinite(double value, String description) {
+        if (!Double.isFinite(value) || value <= 0.0) {
+            throw new IllegalArgumentException(description + " must be finite and positive");
+        }
     }
 
     public void setDirectionActive(MovementDirection direction, boolean active) {
@@ -420,10 +678,29 @@ public final class GameController {
         }
 
         runStatistics.recordWaveCompleted();
+        world.clearProjectiles();
         if (currentWave.getWaveNumber() >= MAX_WAVES) {
-            world.clearProjectiles();
+            currentUpgradeSession = null;
             runState = RunState.VICTORY;
             return;
+        }
+
+        if (experienceProgression.hasPendingLevelUp()) {
+            currentUpgradeSession = createUpgradeChoiceSession();
+            runState = RunState.UPGRADE_SELECTION;
+            return;
+        }
+
+        startNextWave();
+    }
+
+    private UpgradeChoiceSession createUpgradeChoiceSession() {
+        return new UpgradeChoiceSession(upgradeCatalog, upgradeRandom);
+    }
+
+    private void startNextWave() {
+        if (currentWave == null || currentWave.getWaveNumber() >= MAX_WAVES) {
+            throw new IllegalStateException("A next wave is not available");
         }
 
         int nextWaveNumber = currentWave.getWaveNumber() + 1;
@@ -431,9 +708,9 @@ public final class GameController {
         List<Position> spawnPositions = createSpawnPositions(nextConfig.enemyCount());
         Wave nextWave = WaveFactory.createWave(nextWaveNumber, spawnPositions);
 
-        world.clearProjectiles();
         world.replaceEnemies(nextWave.getEnemies());
         currentWave = nextWave;
+        runState = RunState.ACTIVE_WAVE;
     }
 
     private List<Position> createSpawnPositions(int enemyCount) {
