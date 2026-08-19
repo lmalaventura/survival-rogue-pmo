@@ -24,7 +24,9 @@ public class FlatCooldownUpgrade implements WeaponUpgrade {
                         stats.getCooldownSeconds() - reduction
                 ),
                 stats.getDamage(),
-                stats.getProjectileSpeed()
+                stats.getProjectileSpeed(),
+                stats.getProjectileCount(),
+                stats.getSpreadDegrees()
         );
     }
 }

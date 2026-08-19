@@ -6,15 +6,13 @@ import org.junit.jupiter.api.Test;
 
 class WeaponStatsTest {
 
-    @Test
-    void shouldCreateValidWeaponStats() {
-        WeaponStats stats = new WeaponStats(1.5, 20, 7.0);
-        int damage = stats.getDamage();
+@Test
+void shouldCreateStatsWithDefaultProjectilePattern() {
+    WeaponStats stats = new WeaponStats(1.0, 20, 5.0);
 
-        assertEquals(1.5, stats.getCooldownSeconds());
-        assertEquals(20, damage);
-        assertEquals(7.0, stats.getProjectileSpeed());
-    }
+    assertEquals(1, stats.getProjectileCount());
+    assertEquals(0.0, stats.getSpreadDegrees());
+}
 
     @Test
     void shouldRejectZeroCooldown() {
@@ -89,4 +87,79 @@ class WeaponStatsTest {
                 () -> new WeaponStats(1.0, 10, Double.POSITIVE_INFINITY)
         );
     }
+    @Test
+void shouldRejectZeroProjectileCount() {
+    assertThrows(
+            IllegalArgumentException.class,
+            () -> new WeaponStats(
+                    1.0,
+                    20,
+                    5.0,
+                    0,
+                    30.0
+            )
+    );
+}
+@Test
+void shouldRejectNegativeProjectileCount() {
+    assertThrows(
+            IllegalArgumentException.class,
+            () -> new WeaponStats(
+                    1.0,
+                    20,
+                    5.0,
+                    -1,
+                    30.0
+            )
+    );
+}
+@Test
+void shouldRejectNegativeSpread() {
+    assertThrows(
+            IllegalArgumentException.class,
+            () -> new WeaponStats(
+                    1.0,
+                    20,
+                    5.0,
+                    3,
+                    -1.0
+            )
+    );
+}
+@Test
+void shouldRejectSpreadGreaterThan360() {
+    assertThrows(
+            IllegalArgumentException.class,
+            () -> new WeaponStats(
+                    1.0,
+                    20,
+                    5.0,
+                    3,
+                    361.0
+            )
+    );
+}
+@Test
+void shouldStoreProjectilePattern() {
+    WeaponStats stats =
+            new WeaponStats(1.0, 20, 5.0, 5, 60.0);
+
+    assertEquals(5, stats.getProjectileCount());
+    assertEquals(60.0, stats.getSpreadDegrees());
+}
+@Test
+void shouldCreateStatsWithNewProjectilePattern() {
+    WeaponStats original =
+            new WeaponStats(1.0, 20, 5.0, 1, 0.0);
+
+    WeaponStats updated =
+            original.withProjectilePattern(5, 60.0);
+
+    assertEquals(5, updated.getProjectileCount());
+    assertEquals(60.0, updated.getSpreadDegrees());
+
+    assertEquals(1.0, updated.getCooldownSeconds());
+    assertEquals(20, updated.getDamage());
+    assertEquals(5.0, updated.getProjectileSpeed());
+}
 }

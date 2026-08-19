@@ -16,7 +16,9 @@ public class FlatDamageUpgrade implements WeaponUpgrade{
         return new WeaponStats(
                 stats.getCooldownSeconds(),
                 stats.getDamage() + bonusDamage,
-                stats.getProjectileSpeed()
+                stats.getProjectileSpeed(),
+                stats.getProjectileCount(),
+                stats.getSpreadDegrees()
         );
     }
 }

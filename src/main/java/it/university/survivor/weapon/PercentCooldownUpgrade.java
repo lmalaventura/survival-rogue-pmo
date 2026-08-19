@@ -29,7 +29,9 @@ public class PercentCooldownUpgrade implements WeaponUpgrade {
                         stats.getCooldownSeconds() * (1.0 - percentage)
                 ),
                 stats.getDamage(),
-                stats.getProjectileSpeed()
+                stats.getProjectileSpeed(),
+                stats.getProjectileCount(),
+                stats.getSpreadDegrees()
         );
     }
 }

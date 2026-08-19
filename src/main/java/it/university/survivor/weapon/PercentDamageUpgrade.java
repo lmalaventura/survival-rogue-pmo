@@ -21,7 +21,9 @@ public class PercentDamageUpgrade implements WeaponUpgrade{
         return new WeaponStats(
                 stats.getCooldownSeconds(),
                 newDamage,
-                stats.getProjectileSpeed()
+                stats.getProjectileSpeed(),
+                stats.getProjectileCount(),
+                stats.getSpreadDegrees()
         );
     }
 }
