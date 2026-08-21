@@ -1,11 +1,16 @@
 package it.university.survivor.model.enemy;
 
+import java.util.List;
+import java.util.Objects;
+
 public record WaveConfig(
         int waveNumber,
         int enemyCount,
         int enemyHealth,
-        double enemySpeed
+        double enemySpeed,
+        List<EnemyWaveEntry> composition
 ) {
+
     public WaveConfig {
         if (waveNumber <= 0) {
             throw new IllegalArgumentException(
@@ -30,5 +35,48 @@ public record WaveConfig(
                     "Enemy speed must be finite and greater than zero"
             );
         }
+
+        Objects.requireNonNull(
+                composition,
+                "Composition must not be null"
+        );
+
+        if (composition.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Composition must contain at least one entry"
+            );
+        }
+
+        composition = List.copyOf(composition);
+
+        int compositionCount = composition.stream()
+                .mapToInt(EnemyWaveEntry::count)
+                .sum();
+
+        if (compositionCount != enemyCount) {
+            throw new IllegalArgumentException(
+                    "Composition count must match enemy count"
+            );
+        }
+    }
+
+    public WaveConfig(
+            int waveNumber,
+            int enemyCount,
+            int enemyHealth,
+            double enemySpeed
+    ) {
+        this(
+                waveNumber,
+                enemyCount,
+                enemyHealth,
+                enemySpeed,
+                List.of(
+                        new EnemyWaveEntry(
+                                EnemyType.BASIC,
+                                enemyCount
+                        )
+                )
+        );
     }
 }
