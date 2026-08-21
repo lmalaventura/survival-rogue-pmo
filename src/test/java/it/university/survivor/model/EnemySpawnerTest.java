@@ -8,6 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import it.university.survivor.model.enemy.EnemySpawner;
+import it.university.survivor.model.enemy.EnemyType;
 
 class EnemySpawnerTest {
 
@@ -121,7 +122,67 @@ class EnemySpawnerTest {
         assertThrows(
                 UnsupportedOperationException.class,
                 () -> enemies.add(
-                        new Enemy(new Position(200.0, 200.0), 100, 2.0)
+                        new Enemy(
+                                new Position(200.0, 200.0),
+                                100,
+                                2.0
+                        )
+                )
+        );
+    }
+
+    @Test
+    void spawnerShouldCreateBasicEnemiesWithLegacyConstructor() {
+        EnemySpawner spawner = new EnemySpawner(100, 80.0);
+
+        List<Enemy> enemies = spawner.spawn(List.of(
+                new Position(0.0, 0.0),
+                new Position(100.0, 100.0)
+        ));
+
+        assertEquals(2, enemies.size());
+        assertEquals(EnemyType.BASIC, enemies.get(0).getType());
+        assertEquals(EnemyType.BASIC, enemies.get(1).getType());
+    }
+
+    @Test
+    void spawnerShouldCreateEnemiesWithConfiguredType() {
+        EnemySpawner spawner = new EnemySpawner(
+                60,
+                1.8,
+                EnemyType.FAST
+        );
+
+        List<Enemy> enemies = spawner.spawn(List.of(
+                new Position(0.0, 0.0),
+                new Position(100.0, 100.0)
+        ));
+
+        assertEquals(2, enemies.size());
+
+        assertEquals(EnemyType.FAST, enemies.get(0).getType());
+        assertEquals(EnemyType.FAST, enemies.get(1).getType());
+
+        assertEquals(
+                60,
+                enemies.get(0).getHealth().getMaxHealth()
+        );
+
+        assertEquals(
+                1.8,
+                enemies.get(0).getMovementSpeed(),
+                0.0001
+        );
+    }
+
+    @Test
+    void spawnerShouldRejectNullEnemyType() {
+        assertThrows(
+                NullPointerException.class,
+                () -> new EnemySpawner(
+                        100,
+                        80.0,
+                        null
                 )
         );
     }

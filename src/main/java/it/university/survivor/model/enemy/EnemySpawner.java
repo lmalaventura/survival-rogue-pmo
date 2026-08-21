@@ -11,10 +11,25 @@ public final class EnemySpawner {
 
     private final int maxHealth;
     private final double movementSpeed;
+    private final EnemyType type;
 
     public EnemySpawner(int maxHealth, double movementSpeed) {
+        this(
+                maxHealth,
+                movementSpeed,
+                EnemyType.BASIC
+        );
+    }
+
+    public EnemySpawner(
+            int maxHealth,
+            double movementSpeed,
+            EnemyType type
+    ) {
         if (maxHealth <= 0) {
-            throw new IllegalArgumentException("Max health must be greater than zero");
+            throw new IllegalArgumentException(
+                    "Max health must be greater than zero"
+            );
         }
 
         if (!Double.isFinite(movementSpeed) || movementSpeed <= 0.0) {
@@ -23,12 +38,20 @@ public final class EnemySpawner {
             );
         }
 
+        this.type = Objects.requireNonNull(
+                type,
+                "Enemy type must not be null"
+        );
+
         this.maxHealth = maxHealth;
         this.movementSpeed = movementSpeed;
     }
 
     public List<Enemy> spawn(List<Position> positions) {
-        Objects.requireNonNull(positions, "Positions must not be null");
+        Objects.requireNonNull(
+                positions,
+                "Positions must not be null"
+        );
 
         if (positions.isEmpty()) {
             throw new IllegalArgumentException(
@@ -39,8 +62,19 @@ public final class EnemySpawner {
         List<Enemy> enemies = new ArrayList<>();
 
         for (Position position : positions) {
-            Objects.requireNonNull(position, "Position must not be null");
-            enemies.add(new Enemy(position, maxHealth, movementSpeed));
+            Objects.requireNonNull(
+                    position,
+                    "Position must not be null"
+            );
+
+            enemies.add(
+                    new Enemy(
+                            position,
+                            maxHealth,
+                            movementSpeed,
+                            type
+                    )
+            );
         }
 
         return List.copyOf(enemies);
