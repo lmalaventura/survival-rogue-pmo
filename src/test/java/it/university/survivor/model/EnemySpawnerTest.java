@@ -2,13 +2,16 @@ package it.university.survivor.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import it.university.survivor.model.enemy.Boss;
 import it.university.survivor.model.enemy.EnemySpawner;
 import it.university.survivor.model.enemy.EnemyType;
+import it.university.survivor.model.enemy.MiniBoss;
 
 class EnemySpawnerTest {
 
@@ -185,5 +188,39 @@ class EnemySpawnerTest {
                         null
                 )
         );
+    }
+
+    @Test
+    void spawnerShouldCreateMiniBoss() {
+        EnemySpawner spawner = new EnemySpawner(
+                500,
+                0.7,
+                EnemyType.MINIBOSS
+        );
+
+        List<Enemy> enemies = spawner.spawn(List.of(
+                new Position(100.0, 100.0)
+        ));
+
+        assertEquals(1, enemies.size());
+        assertTrue(enemies.get(0) instanceof MiniBoss);
+        assertEquals(EnemyType.MINIBOSS, enemies.get(0).getType());
+    }
+
+    @Test
+    void spawnerShouldCreateBoss() {
+        EnemySpawner spawner = new EnemySpawner(
+                1000,
+                0.6,
+                EnemyType.BOSS
+        );
+
+        List<Enemy> enemies = spawner.spawn(List.of(
+                new Position(400.0, 300.0)
+        ));
+
+        assertEquals(1, enemies.size());
+        assertTrue(enemies.get(0) instanceof Boss);
+        assertEquals(EnemyType.BOSS, enemies.get(0).getType());
     }
 }

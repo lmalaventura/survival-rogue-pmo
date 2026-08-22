@@ -5,7 +5,16 @@ import it.university.survivor.model.Position;
 
 public final class Boss extends Enemy {
 
-    public Boss(Position position, int maxHealth, double movementSpeed) {
-        super(position, maxHealth, movementSpeed);
+    public Boss(
+            Position position,
+            int maxHealth,
+            double movementSpeed
+    ) {
+        super(
+                position,
+                maxHealth,
+                movementSpeed,
+                EnemyType.BOSS
+        );
     }
 }

@@ -67,16 +67,34 @@ public final class EnemySpawner {
                     "Position must not be null"
             );
 
-            enemies.add(
-                    new Enemy(
-                            position,
-                            maxHealth,
-                            movementSpeed,
-                            type
-                    )
-            );
+            enemies.add(createEnemy(position));
         }
 
         return List.copyOf(enemies);
+    }
+
+    private Enemy createEnemy(Position position) {
+        if (type == EnemyType.MINIBOSS) {
+            return new MiniBoss(
+                    position,
+                    maxHealth,
+                    movementSpeed
+            );
+        }
+
+        if (type == EnemyType.BOSS) {
+            return new Boss(
+                    position,
+                    maxHealth,
+                    movementSpeed
+            );
+        }
+
+        return new Enemy(
+                position,
+                maxHealth,
+                movementSpeed,
+                type
+        );
     }
 }

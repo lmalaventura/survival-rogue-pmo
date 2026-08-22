@@ -5,7 +5,16 @@ import it.university.survivor.model.Position;
 
 public final class MiniBoss extends Enemy {
 
-    public MiniBoss(Position position, int maxHealth, double movementSpeed) {
-        super(position, maxHealth, movementSpeed);
+    public MiniBoss(
+            Position position,
+            int maxHealth,
+            double movementSpeed
+    ) {
+        super(
+                position,
+                maxHealth,
+                movementSpeed,
+                EnemyType.MINIBOSS
+        );
     }
 }
