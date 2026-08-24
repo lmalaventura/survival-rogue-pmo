@@ -3,8 +3,11 @@ package it.university.survivor.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
+import it.university.survivor.model.enemy.EnemyType;
 import it.university.survivor.model.enemy.WaveConfig;
 import it.university.survivor.model.enemy.WaveProgression;
 
@@ -71,6 +74,162 @@ class WaveProgressionTest {
         assertEquals(80.0, waveOne.enemySpeed());
         assertEquals(82.0, waveTwo.enemySpeed());
         assertEquals(88.0, waveFive.enemySpeed());
+    }
+
+    @Test
+    void waveTwoShouldHaveCorrectEnemyComposition() {
+        WaveConfig config = WaveProgression.getConfig(2);
+
+        assertEquals(
+                List.of(
+                        EnemyType.BASIC,
+                        EnemyType.FAST
+                ),
+                config.composition().stream()
+                        .map(entry -> entry.type())
+                        .toList()
+        );
+
+        assertEquals(2, config.composition().get(0).count());
+        assertEquals(2, config.composition().get(1).count());
+    }
+
+    @Test
+    void waveThreeShouldHaveCorrectEnemyComposition() {
+        WaveConfig config = WaveProgression.getConfig(3);
+
+        assertEquals(
+                List.of(
+                        EnemyType.BASIC,
+                        EnemyType.FAST,
+                        EnemyType.TANK
+                ),
+                config.composition().stream()
+                        .map(entry -> entry.type())
+                        .toList()
+        );
+
+        assertEquals(2, config.composition().get(0).count());
+        assertEquals(2, config.composition().get(1).count());
+        assertEquals(1, config.composition().get(2).count());
+    }
+
+    @Test
+    void waveFourShouldHaveCorrectEnemyComposition() {
+        WaveConfig config = WaveProgression.getConfig(4);
+
+        assertEquals(
+                List.of(
+                        EnemyType.BASIC,
+                        EnemyType.FAST,
+                        EnemyType.TANK
+                ),
+                config.composition().stream()
+                        .map(entry -> entry.type())
+                        .toList()
+        );
+
+        assertEquals(2, config.composition().get(0).count());
+        assertEquals(2, config.composition().get(1).count());
+        assertEquals(2, config.composition().get(2).count());
+    }
+
+    @Test
+    void waveFiveShouldContainRangedAndMiniBoss() {
+        WaveConfig config = WaveProgression.getConfig(5);
+
+        assertEquals(
+                List.of(
+                        EnemyType.BASIC,
+                        EnemyType.FAST,
+                        EnemyType.TANK,
+                        EnemyType.RANGED,
+                        EnemyType.MINIBOSS
+                ),
+                config.composition().stream()
+                        .map(entry -> entry.type())
+                        .toList()
+        );
+
+        assertEquals(1, config.composition().get(0).count());
+        assertEquals(2, config.composition().get(1).count());
+        assertEquals(2, config.composition().get(2).count());
+        assertEquals(1, config.composition().get(3).count());
+        assertEquals(1, config.composition().get(4).count());
+    }
+
+    @Test
+    void compositionCountShouldMatchEnemyCount() {
+        for (int waveNumber = 1; waveNumber <= 20; waveNumber++) {
+            WaveConfig config = WaveProgression.getConfig(waveNumber);
+
+            assertEquals(
+                    config.enemyCount(),
+                    config.composition().stream()
+                            .mapToInt(entry -> entry.count())
+                            .sum()
+            );
+        }
+    }
+
+    @Test
+    void advancedWaveShouldContainDifferentEnemyTypes() {
+        WaveConfig config = WaveProgression.getConfig(6);
+
+        assertEquals(3, config.composition().size());
+        assertEquals(EnemyType.BASIC, config.composition().get(0).type());
+        assertEquals(EnemyType.FAST, config.composition().get(1).type());
+        assertEquals(EnemyType.TANK, config.composition().get(2).type());
+    }
+
+    @Test
+    void waveTenShouldContainMiniBoss() {
+        WaveConfig config = WaveProgression.getConfig(10);
+
+        assertEquals(12, config.enemyCount());
+        assertEquals(
+                EnemyType.MINIBOSS,
+                config.composition()
+                        .get(config.composition().size() - 1)
+                        .type()
+        );
+        assertEquals(
+                1,
+                config.composition()
+                        .get(config.composition().size() - 1)
+                        .count()
+        );
+    }
+
+    @Test
+    void waveFifteenShouldContainFinalBoss() {
+        WaveConfig config = WaveProgression.getConfig(15);
+
+        assertEquals(17, config.enemyCount());
+        assertEquals(
+                EnemyType.BOSS,
+                config.composition()
+                        .get(config.composition().size() - 1)
+                        .type()
+        );
+        assertEquals(
+                1,
+                config.composition()
+                        .get(config.composition().size() - 1)
+                        .count()
+        );
+    }
+
+    @Test
+    void waveFifteenShouldNotContainMiniBoss() {
+        WaveConfig config = WaveProgression.getConfig(15);
+
+        assertEquals(
+                0,
+                config.composition().stream()
+                        .filter(entry -> entry.type() == EnemyType.MINIBOSS)
+                        .count()
+        );
     }
 
     @Test

@@ -1638,55 +1638,53 @@ class GameControllerTest {
         );
     }
 
-    @Test
-    void successiveTransitionsFollowWaveProgressionThroughWaveFive() {
-        Enemy enemy = deadEnemyAt(100.0, 100.0);
-        GameWorld world = createWorld(500.0, 500.0, enemy);
-        GameController controller = new GameController(
-                world,
-                new Wave(1, List.of(enemy))
+@Test
+void successiveTransitionsFollowWaveProgressionThroughWaveFive() {
+    Enemy enemy = deadEnemyAt(100.0, 100.0);
+    GameWorld world = createWorld(500.0, 500.0, enemy);
+    GameController controller = new GameController(
+            world,
+            new Wave(1, List.of(enemy))
+    );
+
+    for (int expectedWaveNumber = 2;
+            expectedWaveNumber <= 5;
+            expectedWaveNumber++) {
+        controller.update(0.1);
+
+        int waveNumber = expectedWaveNumber;
+        WaveConfig expectedConfig = WaveProgression.getConfig(waveNumber);
+
+        assertAll(
+                () -> assertEquals(
+                        waveNumber,
+                        controller.getCurrentWave().getWaveNumber()
+                ),
+                () -> assertEquals(
+                        expectedConfig.enemyCount(),
+                        controller.getCurrentWave().getEnemies().size()
+                ),
+                () -> assertEquals(
+                        expectedConfig.composition().stream()
+                                .mapToInt(entry -> entry.count())
+                                .sum(),
+                        controller.getCurrentWave().getEnemies().size()
+                ),
+                () -> assertEquals(
+                        waveNumber - 1,
+                        controller.getRunStatistics().getWavesCompleted()
+                ),
+                () -> assertEquals(
+                        RunState.ACTIVE_WAVE,
+                        controller.getRunState()
+                )
         );
 
-        for (int expectedWaveNumber = 2;
-                expectedWaveNumber <= 5;
-                expectedWaveNumber++) {
-            controller.update(0.1);
-
-            int waveNumber = expectedWaveNumber;
-            WaveConfig expectedConfig = WaveProgression.getConfig(waveNumber);
-            assertAll(
-                    () -> assertEquals(
-                            waveNumber,
-                            controller.getCurrentWave().getWaveNumber()
-                    ),
-                    () -> assertEquals(
-                            expectedConfig.enemyCount(),
-                            controller.getCurrentWave().getEnemies().size()
-                    ),
-                    () -> assertTrue(
-                            controller.getCurrentWave().getEnemies().stream()
-                                    .allMatch(currentEnemy ->
-                                            currentEnemy.getHealth().getMaxHealth()
-                                                    == expectedConfig.enemyHealth()
-                                                    && currentEnemy.getMovementSpeed()
-                                                    == expectedConfig.enemySpeed()
-                                    )
-                    ),
-                    () -> assertEquals(
-                            waveNumber - 1,
-                            controller.getRunStatistics().getWavesCompleted()
-                    ),
-                    () -> assertEquals(
-                            RunState.ACTIVE_WAVE,
-                            controller.getRunState()
-                    )
-            );
-
-            if (expectedWaveNumber < 5) {
-                killAllEnemies(controller.getCurrentWave());
-            }
+        if (expectedWaveNumber < 5) {
+            killAllEnemies(controller.getCurrentWave());
         }
     }
+}
 
     @Test
     void waveTransitionClearsProjectilesFromPreviousWave() {

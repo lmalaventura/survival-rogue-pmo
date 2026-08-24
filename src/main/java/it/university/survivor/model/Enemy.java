@@ -1,5 +1,7 @@
 package it.university.survivor.model;
 
+import it.university.survivor.model.enemy.EnemyType;
+
 import java.util.Objects;
 
 public class Enemy {
@@ -7,9 +9,27 @@ public class Enemy {
     private Position position;
     private final Health health;
     private final double movementSpeed;
+    private final EnemyType type;
 
     public Enemy(Position position, int maxHealth, double movementSpeed) {
-        this.position = Objects.requireNonNull(position, "Position must not be null");
+        this(
+                position,
+                maxHealth,
+                movementSpeed,
+                EnemyType.BASIC
+        );
+    }
+
+    public Enemy(
+            Position position,
+            int maxHealth,
+            double movementSpeed,
+            EnemyType type
+    ) {
+        this.position = Objects.requireNonNull(
+                position,
+                "Position must not be null"
+        );
 
         if (!Double.isFinite(movementSpeed) || movementSpeed <= 0.0) {
             throw new IllegalArgumentException(
@@ -17,12 +37,20 @@ public class Enemy {
             );
         }
 
+        this.type = Objects.requireNonNull(
+                type,
+                "Enemy type must not be null"
+        );
+
         this.health = new Health(maxHealth);
         this.movementSpeed = movementSpeed;
-        }
-        void moveTo(Position newPosition) {
-            this.position = Objects.requireNonNull(newPosition, "Position must not be null");
+    }
 
+    void moveTo(Position newPosition) {
+        this.position = Objects.requireNonNull(
+                newPosition,
+                "Position must not be null"
+        );
     }
 
     public Position getPosition() {
@@ -37,8 +65,15 @@ public class Enemy {
         return movementSpeed;
     }
 
+    public EnemyType getType() {
+        return type;
+    }
+
     public Position calculateDesiredDirection(Position targetPosition) {
-        Objects.requireNonNull(targetPosition, "Target position must not be null");
+        Objects.requireNonNull(
+                targetPosition,
+                "Target position must not be null"
+        );
 
         double dx = targetPosition.x() - position.x();
         double dy = targetPosition.y() - position.y();
