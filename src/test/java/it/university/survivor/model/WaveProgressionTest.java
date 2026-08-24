@@ -141,7 +141,7 @@ class WaveProgressionTest {
     void waveFiveShouldHaveCorrectEnemyComposition() {
         WaveConfig config = WaveProgression.getConfig(5);
 
-        assertEquals(2, config.composition().get(0).count());
+        assertEquals(1, config.composition().get(0).count());
         assertEquals(
                 EnemyType.BASIC,
                 config.composition().get(0).type()
@@ -163,6 +163,12 @@ class WaveProgressionTest {
         assertEquals(
                 EnemyType.RANGED,
                 config.composition().get(3).type()
+        );
+
+        assertEquals(1, config.composition().get(4).count());
+        assertEquals(
+                EnemyType.MINIBOSS,
+                config.composition().get(4).type()
         );
     }
 
