@@ -204,6 +204,56 @@ class GameControllerTest {
     }
 
     @Test
+    void elapsedTimeAdvancesByCappedDeltaDuringActiveWave() {
+        GameWorld world = createWorld(500.0, 500.0);
+        RunStatistics statistics = new RunStatistics();
+        GameController controller = new GameController(
+                world,
+                new ExperienceProgression(),
+                statistics
+        );
+
+        controller.update(0.04);
+        controller.update(5.0);
+
+        assertEquals(0.14, statistics.getElapsedTime(), TOLERANCE);
+    }
+
+    @Test
+    void zeroAndInvalidDeltasDoNotChangeElapsedTime() {
+        GameWorld world = createWorld(500.0, 500.0);
+        RunStatistics statistics = new RunStatistics();
+        GameController controller = new GameController(
+                world,
+                new ExperienceProgression(),
+                statistics
+        );
+        controller.update(0.04);
+
+        controller.update(0.0);
+        assertAll(
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> controller.update(-0.01)
+                ),
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> controller.update(Double.NaN)
+                ),
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> controller.update(Double.POSITIVE_INFINITY)
+                ),
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> controller.update(Double.NEGATIVE_INFINITY)
+                )
+        );
+
+        assertEquals(0.04, statistics.getElapsedTime(), TOLERANCE);
+    }
+
+    @Test
     void delegatesBoundaryClampingToGameWorld() {
         Player player = new Player(new Position(95.0, 50.0), 100, MOVEMENT_SPEED);
         GameWorld world = new GameWorld(100.0, 100.0, player);
@@ -2246,6 +2296,32 @@ class GameControllerTest {
     }
 
     @Test
+    void elapsedTimeDoesNotAdvanceDuringUpgradeSelection() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.MAX_HEALTH,
+                ModifierType.FLAT,
+                20.0,
+                1
+        );
+        double elapsedWhenSelectionOpened = fixture.statistics().getElapsedTime();
+
+        fixture.controller().update(0.1);
+        fixture.controller().update(5.0);
+
+        assertAll(
+                () -> assertEquals(
+                        RunState.UPGRADE_SELECTION,
+                        fixture.controller().getRunState()
+                ),
+                () -> assertEquals(
+                        elapsedWhenSelectionOpened,
+                        fixture.statistics().getElapsedTime(),
+                        TOLERANCE
+                )
+        );
+    }
+
+    @Test
     void updateFreezesEntireSimulationDuringUpgradeSelection() {
         UpgradeFixture fixture = enterUpgradeSelection(
                 StatType.MAX_HEALTH,
@@ -2691,6 +2767,47 @@ class GameControllerTest {
     }
 
     @Test
+    void elapsedTimeCountsActiveFrameEndingInVictoryAndThenStops() {
+        Enemy enemy = new Enemy(
+                new Position(900.0, 900.0),
+                10,
+                1.0
+        );
+        GameWorld world = createWorld(100.0, 100.0, enemy);
+        Wave waveFifteen = new Wave(15, List.of(enemy));
+        world.addProjectile(projectileAt(
+                900.0,
+                900.0,
+                1.0,
+                0.0,
+                10,
+                1.0
+        ));
+        RunStatistics statistics = new RunStatistics();
+        GameController controller = new GameController(
+                world,
+                new ExperienceProgression(),
+                statistics,
+                createWeapon(0.75, 25, 300.0),
+                waveFifteen
+        );
+
+        controller.update(0.05);
+        double elapsedAtVictory = statistics.getElapsedTime();
+        controller.update(5.0);
+
+        assertAll(
+                () -> assertEquals(RunState.VICTORY, controller.getRunState()),
+                () -> assertEquals(0.05, elapsedAtVictory, TOLERANCE),
+                () -> assertEquals(
+                        elapsedAtVictory,
+                        statistics.getElapsedTime(),
+                        TOLERANCE
+                )
+        );
+    }
+
+    @Test
     void lethalContactDamageProducesDefeat() {
         Player player = new Player(
                 new Position(500.0, 500.0),
@@ -2719,6 +2836,48 @@ class GameControllerTest {
                 () -> assertSame(wave, controller.getCurrentWave()),
                 () -> assertEquals(0,
                         controller.getRunStatistics().getWavesCompleted())
+        );
+    }
+
+    @Test
+    void elapsedTimeCountsActiveFrameEndingInDefeatAndThenStops() {
+        Player player = new Player(
+                new Position(500.0, 500.0),
+                10,
+                MOVEMENT_SPEED
+        );
+        Enemy enemy = new Enemy(
+                new Position(500.0, 500.0),
+                100,
+                MOVEMENT_SPEED
+        );
+        GameWorld world = new GameWorld(
+                WORLD_SIZE,
+                WORLD_SIZE,
+                player,
+                List.of(enemy)
+        );
+        RunStatistics statistics = new RunStatistics();
+        GameController controller = new GameController(
+                world,
+                new ExperienceProgression(),
+                statistics,
+                createWeapon(0.75, 25, 300.0),
+                new Wave(1, List.of(enemy))
+        );
+
+        controller.update(0.05);
+        double elapsedAtDefeat = statistics.getElapsedTime();
+        controller.update(5.0);
+
+        assertAll(
+                () -> assertEquals(RunState.DEFEAT, controller.getRunState()),
+                () -> assertEquals(0.05, elapsedAtDefeat, TOLERANCE),
+                () -> assertEquals(
+                        elapsedAtDefeat,
+                        statistics.getElapsedTime(),
+                        TOLERANCE
+                )
         );
     }
 

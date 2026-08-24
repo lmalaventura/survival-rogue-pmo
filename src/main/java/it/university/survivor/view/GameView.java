@@ -48,7 +48,6 @@ public final class GameView {
 
     private static final int TOTAL_WAVES = WaveProgression.MAX_WAVES;
     private static final double WAVE_FONT_SIZE = 18.0;
-    private static final double RESULT_FONT_SIZE = 52.0;
 
     private static final double BOSS_BAR_WIDTH = 360.0;
     private static final double BOSS_BAR_HEIGHT = 16.0;
@@ -62,7 +61,6 @@ public final class GameView {
     private static final Color XP_BACKGROUND_COLOR = Color.rgb(24, 30, 40);
     private static final Color XP_FILL_COLOR = Color.rgb(45, 132, 220);
     private static final Color HUD_OUTLINE_COLOR = Color.rgb(12, 16, 22);
-    private static final Color RESULT_OVERLAY_COLOR = Color.rgb(0, 0, 0, 0.58);
     private static final Color BOSS_BAR_BACKGROUND_COLOR = Color.rgb(52, 18, 24);
     private static final Color BOSS_BAR_FILL_COLOR = Color.rgb(190, 30, 55);
     private static final Color BOSS_BAR_OUTLINE_COLOR = Color.rgb(235, 190, 70);
@@ -172,9 +170,6 @@ public final class GameView {
             return;
         }
 
-        if (runState == RunState.VICTORY || runState == RunState.DEFEAT) {
-            drawRunResultOverlay(graphics, runState);
-        }
     }
 
     private void drawWaveHud(GraphicsContext graphics, Wave currentWave) {
@@ -300,23 +295,6 @@ public final class GameView {
             case BOSS -> 3.0;
             default -> 1.5;
         };
-    }
-
-    private void drawRunResultOverlay(GraphicsContext graphics, RunState runState) {
-        graphics.save();
-        graphics.setFill(RESULT_OVERLAY_COLOR);
-        graphics.fillRect(0.0, 0.0, canvas.getWidth(), canvas.getHeight());
-
-        graphics.setFill(Color.WHITE);
-        graphics.setFont(Font.font("System", FontWeight.BOLD, RESULT_FONT_SIZE));
-        graphics.setTextAlign(TextAlignment.CENTER);
-        graphics.setTextBaseline(VPos.CENTER);
-        graphics.fillText(
-                runState == RunState.VICTORY ? "VICTORY" : "DEFEAT",
-                canvas.getWidth() / 2.0,
-                canvas.getHeight() / 2.0
-        );
-        graphics.restore();
     }
 
     private void drawHealthHud(GraphicsContext graphics, Health health) {

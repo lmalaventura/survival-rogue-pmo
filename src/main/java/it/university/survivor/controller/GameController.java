@@ -456,6 +456,7 @@ public final class GameController {
         }
 
         double effectiveDelta = Math.min(deltaSeconds, MAX_DELTA_SECONDS);
+        runStatistics.addElapsedTime(effectiveDelta);
         updateEliteEncounterState(effectiveDelta);
         updatePlayerHitInvulnerability(effectiveDelta);
         updatePlayerMovement(effectiveDelta);

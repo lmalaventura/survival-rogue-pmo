@@ -12,6 +12,8 @@ import it.university.survivor.model.UpgradeChoiceSession;
 import it.university.survivor.model.enemy.Wave;
 import it.university.survivor.model.enemy.WaveFactory;
 import it.university.survivor.view.GameView;
+import it.university.survivor.view.ResultView;
+import it.university.survivor.view.RunInfoView;
 import it.university.survivor.view.UpgradeView;
 import it.university.survivor.weapon.NearestEnemyAttackStrategy;
 import it.university.survivor.weapon.Weapon;
@@ -38,6 +40,9 @@ public class App extends Application {
     private GameLoop gameLoop;
     private UpgradeChoiceSession displayedUpgradeSession;
     private UpgradeView displayedUpgradeView;
+    private RunInfoView displayedRunInfoView;
+    private RunState displayedResultState;
+    private ResultView displayedResultView;
 
     @Override
     public void start(Stage primaryStage) {
@@ -80,14 +85,30 @@ public class App extends Application {
                 world,
                 controller,
                 view,
-                () -> synchronizeUpgradeOverlay(sceneRoot, controller)
+                () -> synchronizeOverlays(
+                        sceneRoot,
+                        controller,
+                        progression,
+                        statistics
+                ),
+                () -> displayedRunInfoView != null
         );
 
         Scene scene = new Scene(sceneRoot, ARENA_WIDTH, ARENA_HEIGHT);
         EnumSet<KeyCode> pressedKeys = EnumSet.noneOf(KeyCode.class);
 
         scene.setOnKeyPressed(event -> {
-            pressedKeys.add(event.getCode());
+            boolean newlyPressed = pressedKeys.add(event.getCode());
+            if (newlyPressed && event.getCode() == KeyCode.I) {
+                toggleRunInfoOverlay(
+                        sceneRoot,
+                        world,
+                        controller,
+                        progression,
+                        statistics,
+                        weapon
+                );
+            }
             updateLogicalDirections(controller, pressedKeys);
         });
         scene.setOnKeyReleased(event -> {
@@ -119,6 +140,20 @@ public class App extends Application {
 
     public static void main(String[] args) {
         launch(args);
+    }
+
+    private void synchronizeOverlays(
+            StackPane sceneRoot,
+            GameController controller,
+            ExperienceProgression progression,
+            RunStatistics statistics
+    ) {
+        synchronizeUpgradeOverlay(sceneRoot, controller);
+        synchronizeResultOverlay(sceneRoot, controller, progression, statistics);
+
+        if (controller.getRunState() != RunState.ACTIVE_WAVE) {
+            removeRunInfoOverlay(sceneRoot);
+        }
     }
 
     private void synchronizeUpgradeOverlay(
@@ -155,6 +190,73 @@ public class App extends Application {
         }
         displayedUpgradeView = null;
         displayedUpgradeSession = null;
+    }
+
+    private void toggleRunInfoOverlay(
+            StackPane sceneRoot,
+            GameWorld world,
+            GameController controller,
+            ExperienceProgression progression,
+            RunStatistics statistics,
+            Weapon weapon
+    ) {
+        if (controller.getRunState() != RunState.ACTIVE_WAVE) {
+            return;
+        }
+        if (displayedRunInfoView != null) {
+            removeRunInfoOverlay(sceneRoot);
+            return;
+        }
+
+        displayedRunInfoView = new RunInfoView(
+                world.getPlayer(),
+                progression,
+                weapon.getCurrentStats(),
+                statistics,
+                controller.getCurrentWave()
+        );
+        sceneRoot.getChildren().add(displayedRunInfoView);
+    }
+
+    private void removeRunInfoOverlay(StackPane sceneRoot) {
+        if (displayedRunInfoView != null) {
+            sceneRoot.getChildren().remove(displayedRunInfoView);
+        }
+        displayedRunInfoView = null;
+    }
+
+    private void synchronizeResultOverlay(
+            StackPane sceneRoot,
+            GameController controller,
+            ExperienceProgression progression,
+            RunStatistics statistics
+    ) {
+        RunState currentState = controller.getRunState();
+        if (currentState != RunState.VICTORY
+                && currentState != RunState.DEFEAT) {
+            removeResultOverlay(sceneRoot);
+            return;
+        }
+        if (displayedResultView != null && displayedResultState == currentState) {
+            return;
+        }
+
+        removeResultOverlay(sceneRoot);
+        displayedResultState = currentState;
+        displayedResultView = new ResultView(
+                currentState,
+                statistics,
+                progression.getLevel()
+        );
+        sceneRoot.getChildren().add(displayedResultView);
+    }
+
+    private void removeResultOverlay(StackPane sceneRoot) {
+        if (displayedResultView != null) {
+            sceneRoot.getChildren().remove(displayedResultView);
+        }
+        displayedResultView = null;
+        displayedResultState = null;
     }
 
     private static void updateLogicalDirections(

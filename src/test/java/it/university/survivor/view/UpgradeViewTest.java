@@ -68,15 +68,15 @@ class UpgradeViewTest {
         assertAll(
                 () -> assertEquals(
                         "-0.20s COOLDOWN",
-                        UpgradeView.formatEffect(epicCooldown)
+                        ItemEffectFormatter.format(epicCooldown)
                 ),
                 () -> assertEquals(
                         "-22.5% COOLDOWN",
-                        UpgradeView.formatEffect(rarePercentage)
+                        ItemEffectFormatter.format(rarePercentage)
                 ),
                 () -> assertEquals(
                         "+7.5 DAMAGE",
-                        UpgradeView.formatEffect(rareFlatDamage)
+                        ItemEffectFormatter.format(rareFlatDamage)
                 )
         );
     }
@@ -105,6 +105,6 @@ class UpgradeViewTest {
                 Rarity.COMMON,
                 new StatModifier(statType, modifierType, baseValue)
         );
-        return UpgradeView.formatEffect(item);
+        return ItemEffectFormatter.format(item);
     }
 }
