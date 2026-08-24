@@ -28,7 +28,7 @@ public final class WaveProgression {
                     List.of(
                             new EnemyWaveEntry(
                                     EnemyType.BASIC,
-                                    3
+                                    enemyCount
                             )
                     )
             );
@@ -99,6 +99,17 @@ public final class WaveProgression {
             );
         }
 
+        /*
+         * Wave 5:
+         *
+         * BASIC    = 1
+         * FAST     = 2
+         * TANK     = 2
+         * RANGED   = 1
+         * MINIBOSS = 1
+         *
+         * Totale = 7
+         */
         if (waveNumber == 5) {
             return new WaveConfig(
                     waveNumber,
@@ -143,15 +154,15 @@ public final class WaveProgression {
     }
 
     private static int calculateEnemyCount(int waveNumber) {
-        return waveNumber + 2;
+        return 2 + waveNumber;
     }
 
     private static int calculateEnemyHealth(int waveNumber) {
-        return 100 + (waveNumber - 1) * 10;
+        return 100 + 10 * (waveNumber - 1);
     }
 
     private static double calculateEnemySpeed(int waveNumber) {
-        return 80.0 + (waveNumber - 1) * 2.0;
+        return 80.0 + 2.0 * (waveNumber - 1);
     }
 
     private static List<EnemyWaveEntry> createAdvancedComposition(
@@ -161,6 +172,9 @@ public final class WaveProgression {
         int fast = Math.max(1, waveNumber / 4);
         int tank = Math.max(1, waveNumber / 5);
 
+        /*
+         * Wave 15 is the final boss wave.
+         */
         if (waveNumber == 15) {
             int basic = enemyCount - fast - tank - 1;
 
@@ -184,6 +198,9 @@ public final class WaveProgression {
             );
         }
 
+        /*
+         * Every other multiple of five contains a miniboss.
+         */
         if (waveNumber % 5 == 0) {
             int basic = enemyCount - fast - tank - 1;
 
