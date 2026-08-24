@@ -3,6 +3,7 @@ package it.university.survivor.view;
 
 import it.university.survivor.model.Item;
 import it.university.survivor.model.ModifierType;
+import it.university.survivor.model.StatType;
 import it.university.survivor.model.UpgradeChoiceSession;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -12,6 +13,7 @@ import javafx.scene.layout.VBox;
 
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 
@@ -74,15 +76,10 @@ public final class UpgradeView extends VBox {
                 final int index = i;
                 Item item = options.get(i);
 
-                String valueStr = item.baseModifier().modifierType() == ModifierType.PERCENTAGE
-                ? String.format("%+.0f%%", item.getEffectiveValue() * 100)
-                : String.format("%+.0f", item.getEffectiveValue());
-
-                String label = String.format("%s [%s] (%s %s)",
+                String label = String.format("%s [%s] (%s)",
                     item.name(),
                     item.rarity(),
-                    valueStr,
-                    item.baseModifier().statType());
+                    formatEffect(item));
 
 
                 Button button = new Button(label);
@@ -98,8 +95,66 @@ public final class UpgradeView extends VBox {
                 optionsContainer.getChildren().add(button);
             }
 
-            rerollButton.setText("Reroll (" + session.getRemainingRerolls() + " rimasto)");
+            int remainingRerolls = session.getRemainingRerolls();
+            String rerollGrammar = remainingRerolls == 1 ? "rimasto" : "rimasti";
+            rerollButton.setText(
+                    "Reroll (" + remainingRerolls + " " + rerollGrammar + ")"
+            );
             rerollButton.setDisable(session.getRemainingRerolls() <= 0 || session.isSelectionMade());
+        }
+
+        static String formatEffect(Item item) {
+            String statLabel = item.baseModifier().statType() == StatType.MAX_HEALTH
+                    ? "MAX HEALTH"
+                    : item.baseModifier().statType().name();
+            return formatEffectiveValue(item) + " " + statLabel;
+        }
+
+        private static String formatEffectiveValue(Item item) {
+            double effectiveValue = item.getEffectiveValue();
+            ModifierType modifierType = item.baseModifier().modifierType();
+
+            if (modifierType == ModifierType.PERCENTAGE) {
+                return formatSignedCompact(effectiveValue * 100.0, 2) + "%";
+            }
+            if (item.baseModifier().statType() == StatType.COOLDOWN) {
+                return formatSigned(effectiveValue, 2) + "s";
+            }
+            return formatSignedCompact(effectiveValue, 2);
+        }
+
+        private static String formatSignedCompact(
+                double value,
+                int maximumDecimalPlaces
+        ) {
+            String formatted = formatSigned(value, maximumDecimalPlaces);
+            int endIndex = formatted.length();
+            while (endIndex > 1 && formatted.charAt(endIndex - 1) == '0') {
+                endIndex--;
+            }
+            if (formatted.charAt(endIndex - 1) == '.') {
+                endIndex--;
+            }
+            return formatted.substring(0, endIndex);
+        }
+
+        private static String formatSigned(double value, int decimalPlaces) {
+            String format = "%+." + decimalPlaces + "f";
+            String formatted = String.format(Locale.ROOT, format, value);
+            if (formatted.charAt(0) == '-' && isFormattedZero(formatted)) {
+                return "+" + formatted.substring(1);
+            }
+            return formatted;
+        }
+
+        private static boolean isFormattedZero(String formatted) {
+            for (int index = 1; index < formatted.length(); index++) {
+                char character = formatted.charAt(index);
+                if (character != '0' && character != '.') {
+                    return false;
+                }
+            }
+            return true;
         }
 
     }

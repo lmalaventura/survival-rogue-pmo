@@ -364,6 +364,62 @@ class GameWorldTest {
     }
 
     @Test
+    void addsEnemyAfterExistingEnemiesPreservingOrderAndIdentity() {
+        Enemy existingEnemy = enemyAt(10.0, 20.0);
+        Enemy addedEnemy = enemyAt(30.0, 40.0);
+        GameWorld world = worldWithEnemies(List.of(existingEnemy));
+
+        world.addEnemy(addedEnemy);
+
+        assertAll(
+                () -> assertEquals(2, world.getEnemies().size()),
+                () -> assertSame(existingEnemy, world.getEnemies().get(0)),
+                () -> assertSame(addedEnemy, world.getEnemies().get(1))
+        );
+    }
+
+    @Test
+    void acceptsEnemiesAddedOnInclusiveWorldBoundaries() {
+        GameWorld world = worldWithEnemies(List.of());
+        Enemy topLeft = enemyAt(0.0, 0.0);
+        Enemy bottomRight = enemyAt(100.0, 80.0);
+
+        assertAll(
+                () -> assertDoesNotThrow(() -> world.addEnemy(topLeft)),
+                () -> assertDoesNotThrow(() -> world.addEnemy(bottomRight))
+        );
+        assertAll(
+                () -> assertSame(topLeft, world.getEnemies().get(0)),
+                () -> assertSame(bottomRight, world.getEnemies().get(1))
+        );
+    }
+
+    @Test
+    void rejectsInvalidEnemyAdditionsWithoutChangingCurrentEnemies() {
+        Enemy currentEnemy = enemyAt(10.0, 20.0);
+        GameWorld world = worldWithEnemies(List.of(currentEnemy));
+
+        assertAll(
+                () -> assertThrows(NullPointerException.class,
+                        () -> world.addEnemy(null)),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.addEnemy(enemyAt(-1.0, 40.0))),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.addEnemy(enemyAt(101.0, 40.0))),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.addEnemy(enemyAt(50.0, -1.0))),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> world.addEnemy(enemyAt(50.0, 81.0)))
+        );
+        assertAll(
+                () -> assertEquals(1, world.getEnemies().size()),
+                () -> assertSame(currentEnemy, world.getEnemies().get(0)),
+                () -> assertThrows(UnsupportedOperationException.class,
+                        () -> world.getEnemies().add(enemyAt(30.0, 40.0)))
+        );
+    }
+
+    @Test
     void movesEnemyWithPositiveAndNegativeDeltas() {
         Enemy enemy = enemyAt(20.0, 30.0);
         GameWorld world = worldWithEnemies(List.of(enemy));

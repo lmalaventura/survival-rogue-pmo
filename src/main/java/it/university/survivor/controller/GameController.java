@@ -12,6 +12,7 @@ import it.university.survivor.model.RunStatistics;
 import it.university.survivor.model.StatModifier;
 import it.university.survivor.model.UpgradeCatalog;
 import it.university.survivor.model.UpgradeChoiceSession;
+import it.university.survivor.model.enemy.EnemySpawner;
 import it.university.survivor.model.enemy.EnemyType;
 import it.university.survivor.model.enemy.Wave;
 import it.university.survivor.model.enemy.WaveConfig;
@@ -40,9 +41,19 @@ public final class GameController {
     private static final double PLAYER_MOVEMENT_SUBSTEP_DISTANCE = 1.0;
     private static final double CONTACT_DISTANCE_TOLERANCE = 1.0e-9;
     private static final int ENEMY_CONTACT_DAMAGE = 10;
-    private static final int ENEMY_EXPERIENCE_REWARD = 25;
     private static final double PLAYER_HIT_INVULNERABILITY_SECONDS = 0.5;
     private static final double SPAWN_MARGIN = 24.0;
+    private static final double MINIBOSS_CHARGE_INTERVAL_SECONDS = 3.0;
+    private static final double MINIBOSS_CHARGE_DURATION_SECONDS = 0.6;
+    private static final double MINIBOSS_CHARGE_SPEED_MULTIPLIER = 2.5;
+    private static final double MINIBOSS_ENRAGE_HEALTH_RATIO = 0.40;
+    private static final double MINIBOSS_ENRAGE_SPEED_MULTIPLIER = 1.8;
+    private static final double BOSS_SUMMON_INTERVAL_SECONDS = 4.0;
+    private static final int BOSS_MINIONS_PER_SUMMON = 2;
+    private static final int MAX_BOSS_MINIONS_ALIVE = 6;
+    private static final int BOSS_SUMMON_DIRECTION_COUNT = 16;
+    private static final int BOSS_SUMMON_RING_COUNT = 4;
+    private static final double BOSS_SUMMON_EXTRA_DISTANCE = 4.0;
 
     private final GameWorld world;
     private final ExperienceProgression experienceProgression;
@@ -56,6 +67,13 @@ public final class GameController {
     private final EnumSet<MovementDirection> activeDirections =
             EnumSet.noneOf(MovementDirection.class);
     private double playerHitInvulnerabilityRemaining = 0.0;
+    private double miniBossChargeIntervalElapsed = 0.0;
+    private double miniBossChargeRemaining = 0.0;
+    private Enemy enragedMiniBoss;
+    private double bossSummonIntervalElapsed = 0.0;
+    private int bossMinionTypeSequence = 0;
+    private int bossSummonPositionSequence = 0;
+    private final List<Enemy> bossSummonedMinions = new ArrayList<>();
 
     public GameController(GameWorld world) {
         this(
@@ -427,22 +445,32 @@ public final class GameController {
         }
         if (world.getPlayer().getHealth().isDead()) {
             runState = RunState.DEFEAT;
+            resetEliteEncounterState();
             return;
         }
         if (deltaSeconds == 0.0) {
             return;
         }
+        if (completeFinalWaveIfNeeded()) {
+            return;
+        }
 
         double effectiveDelta = Math.min(deltaSeconds, MAX_DELTA_SECONDS);
+        updateEliteEncounterState(effectiveDelta);
         updatePlayerHitInvulnerability(effectiveDelta);
         updatePlayerMovement(effectiveDelta);
         updateEnemyMovement(effectiveDelta);
         updateWeapon(effectiveDelta);
         updateProjectileMovementAndCollisions(effectiveDelta);
+        if (completeFinalWaveIfNeeded()) {
+            return;
+        }
+        updateWaveFifteenSummoning(effectiveDelta);
         applyEnemyContactDamage();
 
         if (world.getPlayer().getHealth().isDead()) {
             runState = RunState.DEFEAT;
+            resetEliteEncounterState();
             return;
         }
         advanceWaveIfCompleted();
@@ -535,6 +563,265 @@ public final class GameController {
         return true;
     }
 
+    private void updateEliteEncounterState(double effectiveDelta) {
+        updateWaveFiveCharge(effectiveDelta);
+        updateWaveTenEnrage();
+    }
+
+    private void updateWaveFiveCharge(double effectiveDelta) {
+        if (!isCurrentWave(5)) {
+            return;
+        }
+
+        Enemy miniBoss = findLivingCurrentWaveEnemy(EnemyType.MINIBOSS);
+        if (miniBoss == null) {
+            miniBossChargeIntervalElapsed = 0.0;
+            miniBossChargeRemaining = 0.0;
+            return;
+        }
+
+        if (miniBossChargeRemaining > 0.0) {
+            if (miniBossChargeRemaining
+                    <= effectiveDelta + CONTACT_DISTANCE_TOLERANCE) {
+                miniBossChargeRemaining = 0.0;
+                miniBossChargeIntervalElapsed = 0.0;
+            } else {
+                miniBossChargeRemaining -= effectiveDelta;
+            }
+            return;
+        }
+
+        miniBossChargeIntervalElapsed += effectiveDelta;
+        if (miniBossChargeIntervalElapsed + CONTACT_DISTANCE_TOLERANCE
+                >= MINIBOSS_CHARGE_INTERVAL_SECONDS) {
+            miniBossChargeIntervalElapsed = 0.0;
+            miniBossChargeRemaining = MINIBOSS_CHARGE_DURATION_SECONDS;
+        }
+    }
+
+    private void updateWaveTenEnrage() {
+        if (!isCurrentWave(10) || enragedMiniBoss != null) {
+            return;
+        }
+
+        Enemy miniBoss = findLivingCurrentWaveEnemy(EnemyType.MINIBOSS);
+        if (miniBoss == null) {
+            return;
+        }
+
+        double healthRatio = (double) miniBoss.getHealth().getCurrentHealth()
+                / miniBoss.getHealth().getMaxHealth();
+        if (healthRatio <= MINIBOSS_ENRAGE_HEALTH_RATIO) {
+            enragedMiniBoss = miniBoss;
+        }
+    }
+
+    private void updateWaveFifteenSummoning(double effectiveDelta) {
+        if (!isCurrentWave(WaveProgression.MAX_WAVES)) {
+            return;
+        }
+
+        Enemy boss = findLivingCurrentWaveEnemy(EnemyType.BOSS);
+        if (boss == null) {
+            return;
+        }
+
+        bossSummonIntervalElapsed = Math.min(
+                BOSS_SUMMON_INTERVAL_SECONDS,
+                bossSummonIntervalElapsed + effectiveDelta
+        );
+        if (bossSummonIntervalElapsed + CONTACT_DISTANCE_TOLERANCE
+                < BOSS_SUMMON_INTERVAL_SECONDS) {
+            return;
+        }
+
+        if (summonBossMinions(boss)) {
+            bossSummonIntervalElapsed = 0.0;
+        }
+    }
+
+    private boolean summonBossMinions(Enemy boss) {
+        int aliveMinions = (int) bossSummonedMinions.stream()
+                .filter(enemy -> !enemy.isDead())
+                .count();
+        int availableSlots = MAX_BOSS_MINIONS_ALIVE - aliveMinions;
+        if (availableSlots < BOSS_MINIONS_PER_SUMMON) {
+            return false;
+        }
+
+        WaveConfig config = WaveProgression.getConfig(
+                currentWave.getWaveNumber()
+        );
+        int initialPositionSequence = bossSummonPositionSequence;
+        int initialTypeSequence = bossMinionTypeSequence;
+        List<Enemy> pendingMinions = new ArrayList<>(BOSS_MINIONS_PER_SUMMON);
+
+        for (int index = 0; index < BOSS_MINIONS_PER_SUMMON; index++) {
+            EnemyType minionType = bossMinionTypeSequence % 2 == 0
+                    ? EnemyType.BASIC
+                    : EnemyType.FAST;
+            Position spawnPosition = findBossMinionSpawnPosition(
+                    boss,
+                    minionType,
+                    pendingMinions
+            );
+            if (spawnPosition == null) {
+                bossSummonPositionSequence = initialPositionSequence;
+                bossMinionTypeSequence = initialTypeSequence;
+                return false;
+            }
+
+            int maxHealth = minionType == EnemyType.BASIC
+                    ? config.enemyHealth()
+                    : minionType.maxHealth();
+            double movementSpeed = config.enemySpeed()
+                    * minionType.speedMultiplier();
+            Enemy minion = new EnemySpawner(
+                    maxHealth,
+                    movementSpeed,
+                    minionType
+            ).spawn(List.of(spawnPosition)).get(0);
+            pendingMinions.add(minion);
+            bossMinionTypeSequence++;
+        }
+
+        pendingMinions.forEach(world::addEnemy);
+        bossSummonedMinions.addAll(pendingMinions);
+        return true;
+    }
+
+    private Position findBossMinionSpawnPosition(
+            Enemy boss,
+            EnemyType minionType,
+            List<Enemy> pendingMinions
+    ) {
+        int candidateCount = BOSS_SUMMON_DIRECTION_COUNT
+                * BOSS_SUMMON_RING_COUNT;
+        double minimumBossDistance = collisionRadius(boss)
+                + minionType.collisionRadius()
+                + ENEMY_SEPARATION_GAP
+                + BOSS_SUMMON_EXTRA_DISTANCE;
+        double ringSpacing = 2.0 * minionType.collisionRadius()
+                + ENEMY_SEPARATION_GAP
+                + BOSS_SUMMON_EXTRA_DISTANCE;
+
+        for (int offset = 0; offset < candidateCount; offset++) {
+            int candidateIndex = (bossSummonPositionSequence + offset)
+                    % candidateCount;
+            int ringIndex = candidateIndex / BOSS_SUMMON_DIRECTION_COUNT;
+            int directionIndex = candidateIndex
+                    % BOSS_SUMMON_DIRECTION_COUNT;
+            double angle = 2.0 * Math.PI * directionIndex
+                    / BOSS_SUMMON_DIRECTION_COUNT;
+            double distance = minimumBossDistance + ringIndex * ringSpacing;
+            Position bossPosition = boss.getPosition();
+            Position candidate = new Position(
+                    bossPosition.x() + Math.cos(angle) * distance,
+                    bossPosition.y() + Math.sin(angle) * distance
+            );
+
+            if (isValidBossMinionSpawnPosition(
+                    candidate,
+                    minionType,
+                    pendingMinions
+            )) {
+                bossSummonPositionSequence = (candidateIndex + 1)
+                        % candidateCount;
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private boolean isValidBossMinionSpawnPosition(
+            Position candidate,
+            EnemyType minionType,
+            List<Enemy> pendingMinions
+    ) {
+        if (candidate.x() < 0.0 || candidate.x() > world.getWidth()
+                || candidate.y() < 0.0 || candidate.y() > world.getHeight()) {
+            return false;
+        }
+
+        Position playerPosition = world.getPlayer().getPosition();
+        double playerDistance = Math.hypot(
+                candidate.x() - playerPosition.x(),
+                candidate.y() - playerPosition.y()
+        );
+        if (playerDistance + CONTACT_DISTANCE_TOLERANCE
+                < PLAYER_COLLISION_RADIUS + minionType.collisionRadius()) {
+            return false;
+        }
+
+        for (Enemy enemy : world.getEnemies()) {
+            if (enemy.isDead()) {
+                continue;
+            }
+
+            Position enemyPosition = enemy.getPosition();
+            double enemyDistance = Math.hypot(
+                    candidate.x() - enemyPosition.x(),
+                    candidate.y() - enemyPosition.y()
+            );
+            double minimumDistance = minionType.collisionRadius()
+                    + collisionRadius(enemy)
+                    + ENEMY_SEPARATION_GAP;
+            if (enemyDistance + CONTACT_DISTANCE_TOLERANCE < minimumDistance) {
+                return false;
+            }
+        }
+
+        for (Enemy pendingMinion : pendingMinions) {
+            Position pendingPosition = pendingMinion.getPosition();
+            double pendingDistance = Math.hypot(
+                    candidate.x() - pendingPosition.x(),
+                    candidate.y() - pendingPosition.y()
+            );
+            double minimumDistance = minionType.collisionRadius()
+                    + collisionRadius(pendingMinion)
+                    + ENEMY_SEPARATION_GAP;
+            if (pendingDistance + CONTACT_DISTANCE_TOLERANCE < minimumDistance) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private Enemy findLivingCurrentWaveEnemy(EnemyType type) {
+        if (currentWave == null) {
+            return null;
+        }
+
+        return currentWave.getEnemies().stream()
+                .filter(enemy -> enemy.getType() == type)
+                .filter(enemy -> !enemy.isDead())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean isCurrentWave(int waveNumber) {
+        return currentWave != null
+                && currentWave.getWaveNumber() == waveNumber;
+    }
+
+    private double enemyMovementSpeedMultiplier(Enemy enemy) {
+        if (isCurrentWave(5)
+                && miniBossChargeRemaining > 0.0
+                && enemy.getType() == EnemyType.MINIBOSS
+                && currentWave.getEnemies().stream()
+                        .anyMatch(waveEnemy -> waveEnemy == enemy)) {
+            return MINIBOSS_CHARGE_SPEED_MULTIPLIER;
+        }
+
+        if (enemy == enragedMiniBoss) {
+            return MINIBOSS_ENRAGE_SPEED_MULTIPLIER;
+        }
+
+        return 1.0;
+    }
+
     private void updateEnemyMovement(double effectiveDelta) {
         Position playerPosition = world.getPlayer().getPosition();
 
@@ -554,7 +841,9 @@ public final class GameController {
             }
 
             Position direction = enemy.calculateDesiredDirection(playerPosition);
-            double desiredMovement = enemy.getMovementSpeed() * effectiveDelta;
+            double desiredMovement = enemy.getMovementSpeed()
+                    * enemyMovementSpeedMultiplier(enemy)
+                    * effectiveDelta;
             double actualMovement = Math.min(desiredMovement, maximumMovement);
             double movementX = direction.x() * actualMovement;
             double movementY = direction.y() * actualMovement;
@@ -683,6 +972,7 @@ public final class GameController {
         if (currentWave.getWaveNumber() >= WaveProgression.MAX_WAVES) {
             currentUpgradeSession = null;
             runState = RunState.VICTORY;
+            resetEliteEncounterState();
             return;
         }
 
@@ -693,6 +983,16 @@ public final class GameController {
         }
 
         startNextWave();
+    }
+
+    private boolean completeFinalWaveIfNeeded() {
+        if (!isCurrentWave(WaveProgression.MAX_WAVES)
+                || !currentWave.isCompleted()) {
+            return false;
+        }
+
+        advanceWaveIfCompleted();
+        return runState == RunState.VICTORY;
     }
 
     private UpgradeChoiceSession createUpgradeChoiceSession() {
@@ -712,7 +1012,18 @@ public final class GameController {
 
         world.replaceEnemies(nextWave.getEnemies());
         currentWave = nextWave;
+        resetEliteEncounterState();
         runState = RunState.ACTIVE_WAVE;
+    }
+
+    private void resetEliteEncounterState() {
+        miniBossChargeIntervalElapsed = 0.0;
+        miniBossChargeRemaining = 0.0;
+        enragedMiniBoss = null;
+        bossSummonIntervalElapsed = 0.0;
+        bossMinionTypeSequence = 0;
+        bossSummonPositionSequence = 0;
+        bossSummonedMinions.clear();
     }
 
     private List<Position> createSpawnPositions(int enemyCount) {
@@ -774,9 +1085,10 @@ public final class GameController {
                 boolean wasAlive = !hitEnemy.isDead();
                 hitEnemy.takeDamage(projectile.getDamage());
                 if (wasAlive && hitEnemy.isDead()) {
-                    experienceProgression.addExperience(ENEMY_EXPERIENCE_REWARD);
+                    int experienceReward = hitEnemy.getType().experienceReward();
+                    experienceProgression.addExperience(experienceReward);
                     runStatistics.recordEnemyDefeated();
-                    runStatistics.recordExperienceGained(ENEMY_EXPERIENCE_REWARD);
+                    runStatistics.recordExperienceGained(experienceReward);
                 }
                 world.removeProjectile(projectile);
             }

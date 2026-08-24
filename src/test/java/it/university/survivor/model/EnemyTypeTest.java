@@ -54,6 +54,18 @@ class EnemyTypeTest {
     }
 
     @Test
+    void shouldExposeExperienceRewardForEveryEnemyType() {
+        assertAll(
+                () -> assertEquals(10, EnemyType.BASIC.experienceReward()),
+                () -> assertEquals(12, EnemyType.FAST.experienceReward()),
+                () -> assertEquals(18, EnemyType.TANK.experienceReward()),
+                () -> assertEquals(15, EnemyType.RANGED.experienceReward()),
+                () -> assertEquals(75, EnemyType.MINIBOSS.experienceReward()),
+                () -> assertEquals(250, EnemyType.BOSS.experienceReward())
+        );
+    }
+
+    @Test
     void bossTypesShouldHaveDistinctHealthInvariants() {
         assertTrue(
                 EnemyType.MINIBOSS.maxHealth()

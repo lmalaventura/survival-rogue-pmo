@@ -1350,10 +1350,10 @@ class GameControllerTest {
                 () -> assertSame(experienceProgression,
                         controller.getExperienceProgression()),
                 () -> assertSame(runStatistics, controller.getRunStatistics()),
-                () -> assertEquals(25,
+                () -> assertEquals(10,
                         experienceProgression.getCurrentExperience()),
                 () -> assertEquals(1, runStatistics.getEnemiesDefeated()),
-                () -> assertEquals(25, runStatistics.getExperienceGained())
+                () -> assertEquals(10, runStatistics.getExperienceGained())
         );
     }
 
@@ -1382,10 +1382,10 @@ class GameControllerTest {
         assertAll(
                 () -> assertTrue(enemy.isDead()),
                 () -> assertEquals(List.of(laterProjectile), world.getProjectiles()),
-                () -> assertEquals(25,
+                () -> assertEquals(10,
                         experienceProgression.getCurrentExperience()),
                 () -> assertEquals(1, runStatistics.getEnemiesDefeated()),
-                () -> assertEquals(25, runStatistics.getExperienceGained())
+                () -> assertEquals(10, runStatistics.getExperienceGained())
         );
     }
 
@@ -1413,10 +1413,10 @@ class GameControllerTest {
         assertAll(
                 () -> assertTrue(firstEnemy.isDead()),
                 () -> assertTrue(secondEnemy.isDead()),
-                () -> assertEquals(50,
+                () -> assertEquals(20,
                         experienceProgression.getCurrentExperience()),
                 () -> assertEquals(2, runStatistics.getEnemiesDefeated()),
-                () -> assertEquals(50, runStatistics.getExperienceGained())
+                () -> assertEquals(20, runStatistics.getExperienceGained())
         );
     }
 
@@ -1453,10 +1453,10 @@ class GameControllerTest {
 
         assertAll(
                 () -> assertTrue(enemy.isDead()),
-                () -> assertEquals(25,
+                () -> assertEquals(10,
                         experienceProgression.getCurrentExperience()),
                 () -> assertEquals(1, runStatistics.getEnemiesDefeated()),
-                () -> assertEquals(25, runStatistics.getExperienceGained())
+                () -> assertEquals(10, runStatistics.getExperienceGained())
         );
     }
 
@@ -1468,7 +1468,7 @@ class GameControllerTest {
                 476.0, 500.0, 1.0, 0.0, 25, 100.0
         ));
         ExperienceProgression experienceProgression = new ExperienceProgression();
-        experienceProgression.addExperience(75);
+        experienceProgression.addExperience(90);
         RunStatistics runStatistics = new RunStatistics();
         GameController controller = new GameController(
                 world,
@@ -1486,7 +1486,7 @@ class GameControllerTest {
                 () -> assertEquals(1,
                         experienceProgression.getPendingLevelUps()),
                 () -> assertEquals(1, runStatistics.getEnemiesDefeated()),
-                () -> assertEquals(25, runStatistics.getExperienceGained())
+                () -> assertEquals(10, runStatistics.getExperienceGained())
         );
     }
 
@@ -1703,10 +1703,342 @@ class GameControllerTest {
         assertAll(
                 () -> assertTrue(enemy.isDead()),
                 () -> assertEquals(List.of(), world.getProjectiles()),
-                () -> assertEquals(25,
+                () -> assertEquals(10,
                         experienceProgression.getCurrentExperience()),
                 () -> assertEquals(1, runStatistics.getEnemiesDefeated()),
-                () -> assertEquals(25, runStatistics.getExperienceGained())
+                () -> assertEquals(10, runStatistics.getExperienceGained())
+        );
+    }
+
+    @Test
+    void enemyTypesAwardTheirConfiguredExperience() {
+        assertAll(
+                () -> assertEnemyKillReward(EnemyType.BASIC, 10, 1, 10),
+                () -> assertEnemyKillReward(EnemyType.FAST, 12, 1, 12),
+                () -> assertEnemyKillReward(EnemyType.TANK, 18, 1, 18),
+                () -> assertEnemyKillReward(EnemyType.RANGED, 15, 1, 15),
+                () -> assertEnemyKillReward(EnemyType.MINIBOSS, 75, 1, 75),
+                () -> assertEnemyKillReward(EnemyType.BOSS, 250, 3, 25)
+        );
+    }
+
+    @Test
+    void waveFiveMiniBossMovesNormallyBeforeChargeThenMovesFaster() {
+        Enemy miniBoss = new Enemy(
+                new Position(100.0, 500.0),
+                100,
+                10.0,
+                EnemyType.MINIBOSS
+        );
+        GameWorld world = createWorld(900.0, 500.0, miniBoss);
+        GameController controller = new GameController(
+                world,
+                new Wave(5, List.of(miniBoss))
+        );
+
+        advanceUpdates(controller, 28);
+        double beforeNormalUpdate = miniBoss.getPosition().x();
+        controller.update(0.1);
+        double afterNormalUpdate = miniBoss.getPosition().x();
+        controller.update(0.1);
+        double afterChargeStarts = miniBoss.getPosition().x();
+
+        assertAll(
+                () -> assertEquals(
+                        1.0,
+                        afterNormalUpdate - beforeNormalUpdate,
+                        TOLERANCE
+                ),
+                () -> assertEquals(
+                        2.5,
+                        afterChargeStarts - afterNormalUpdate,
+                        TOLERANCE
+                )
+        );
+    }
+
+    @Test
+    void waveFiveMiniBossChargeEndsAndCanActivateAgain() {
+        Enemy miniBoss = new Enemy(
+                new Position(100.0, 500.0),
+                100,
+                10.0,
+                EnemyType.MINIBOSS
+        );
+        GameWorld world = createWorld(900.0, 500.0, miniBoss);
+        GameController controller = new GameController(
+                world,
+                new Wave(5, List.of(miniBoss))
+        );
+
+        advanceUpdates(controller, 30);
+        advanceUpdates(controller, 5);
+        double beforeChargeEnds = miniBoss.getPosition().x();
+        controller.update(0.1);
+        double afterChargeEnds = miniBoss.getPosition().x();
+
+        advanceUpdates(controller, 29);
+        double beforeSecondCharge = miniBoss.getPosition().x();
+        controller.update(0.1);
+        double afterSecondCharge = miniBoss.getPosition().x();
+
+        assertAll(
+                () -> assertEquals(
+                        1.0,
+                        afterChargeEnds - beforeChargeEnds,
+                        TOLERANCE
+                ),
+                () -> assertEquals(
+                        2.5,
+                        afterSecondCharge - beforeSecondCharge,
+                        TOLERANCE
+                )
+        );
+    }
+
+    @Test
+    void waveTenMiniBossEnragesAtFortyPercentAndStaysEnraged() {
+        Enemy miniBoss = new Enemy(
+                new Position(100.0, 500.0),
+                100,
+                10.0,
+                EnemyType.MINIBOSS
+        );
+        GameWorld world = createWorld(900.0, 500.0, miniBoss);
+        GameController controller = new GameController(
+                world,
+                new Wave(10, List.of(miniBoss))
+        );
+
+        miniBoss.takeDamage(59);
+        controller.update(0.1);
+        double afterNormalMovement = miniBoss.getPosition().x();
+
+        miniBoss.takeDamage(1);
+        controller.update(0.1);
+        double afterEnragedMovement = miniBoss.getPosition().x();
+
+        miniBoss.getHealth().heal(60);
+        controller.update(0.1);
+        double afterHealing = miniBoss.getPosition().x();
+
+        assertAll(
+                () -> assertEquals(101.0, afterNormalMovement, TOLERANCE),
+                () -> assertEquals(
+                        1.8,
+                        afterEnragedMovement - afterNormalMovement,
+                        TOLERANCE
+                ),
+                () -> assertEquals(
+                        1.8,
+                        afterHealing - afterEnragedMovement,
+                        TOLERANCE
+                )
+        );
+    }
+
+    @Test
+    void waveTenEnrageDoesNotAffectOtherEnemyTypes() {
+        Enemy basicEnemy = new Enemy(
+                new Position(100.0, 500.0),
+                100,
+                10.0,
+                EnemyType.BASIC
+        );
+        basicEnemy.takeDamage(60);
+        GameWorld world = createWorld(900.0, 500.0, basicEnemy);
+        GameController controller = new GameController(
+                world,
+                new Wave(10, List.of(basicEnemy))
+        );
+
+        controller.update(0.1);
+
+        assertPosition(101.0, 500.0, basicEnemy.getPosition());
+    }
+
+    @Test
+    void waveFifteenBossSummonsTwoAlternatingMinionsAtInterval() {
+        BossEncounterFixture fixture = createBossEncounterFixture(15);
+
+        advanceUpdates(fixture.controller(), 39);
+        assertEquals(1, fixture.world().getEnemies().size());
+
+        fixture.controller().update(0.1);
+
+        assertAll(
+                () -> assertEquals(3, fixture.world().getEnemies().size()),
+                () -> assertEquals(
+                        EnemyType.BASIC,
+                        fixture.world().getEnemies().get(1).getType()
+                ),
+                () -> assertEquals(
+                        EnemyType.FAST,
+                        fixture.world().getEnemies().get(2).getType()
+                ),
+                () -> assertTrue(fixture.world().getEnemies().stream()
+                        .allMatch(enemy -> isWithinWorld(
+                                enemy.getPosition(),
+                                fixture.world()
+                        )))
+        );
+    }
+
+    @Test
+    void bossSummonedMinionsStayCappedAndCanBeReplenished() {
+        BossEncounterFixture fixture = createBossEncounterFixture(15);
+
+        advanceUpdates(fixture.controller(), 120);
+        List<Enemy> firstSixMinions = fixture.world().getEnemies().stream()
+                .filter(enemy -> enemy != fixture.boss())
+                .toList();
+
+        advanceUpdates(fixture.controller(), 40);
+        int countWhileCapped = fixture.world().getEnemies().size();
+
+        firstSixMinions.stream().limit(2).forEach(enemy -> enemy.takeDamage(
+                enemy.getHealth().getCurrentHealth()
+        ));
+        fixture.controller().update(0.1);
+
+        long livingSummonedMinions = fixture.world().getEnemies().stream()
+                .filter(enemy -> enemy != fixture.boss())
+                .filter(enemy -> !enemy.isDead())
+                .count();
+        assertAll(
+                () -> assertEquals(6, firstSixMinions.size()),
+                () -> assertEquals(7, countWhileCapped),
+                () -> assertEquals(9, fixture.world().getEnemies().size()),
+                () -> assertEquals(6, livingSummonedMinions)
+        );
+    }
+
+    @Test
+    void bossDoesNotSummonWhenDeadOrOutsideWaveFifteen() {
+        BossEncounterFixture waveFourteen = createBossEncounterFixture(14);
+        advanceUpdates(waveFourteen.controller(), 40);
+
+        BossEncounterFixture deadBossWave = createBossEncounterFixture(15);
+        deadBossWave.boss().takeDamage(
+                deadBossWave.boss().getHealth().getCurrentHealth()
+        );
+        advanceUpdates(deadBossWave.controller(), 40);
+
+        assertAll(
+                () -> assertEquals(1, waveFourteen.world().getEnemies().size()),
+                () -> assertEquals(1, deadBossWave.world().getEnemies().size()),
+                () -> assertEquals(
+                        RunState.VICTORY,
+                        deadBossWave.controller().getRunState()
+                )
+        );
+    }
+
+    @Test
+    void bossKilledAtSummonThresholdDoesNotCreateMinions() {
+        BossEncounterFixture fixture = createBossEncounterFixture(15);
+        advanceUpdates(fixture.controller(), 39);
+        Position bossPosition = fixture.boss().getPosition();
+        fixture.world().addProjectile(projectileAt(
+                bossPosition.x(),
+                bossPosition.y(),
+                1.0,
+                0.0,
+                fixture.boss().getHealth().getCurrentHealth(),
+                1.0
+        ));
+
+        fixture.controller().update(0.1);
+
+        assertAll(
+                () -> assertTrue(fixture.boss().isDead()),
+                () -> assertEquals(1, fixture.world().getEnemies().size()),
+                () -> assertEquals(
+                        RunState.VICTORY,
+                        fixture.controller().getRunState()
+                )
+        );
+    }
+
+    @Test
+    void summonedMinionsDoNotBlockVictoryOrCreateWaveSixteen() {
+        BossEncounterFixture fixture = createBossEncounterFixture(15);
+        advanceUpdates(fixture.controller(), 40);
+        fixture.boss().takeDamage(fixture.boss().getHealth().getCurrentHealth());
+
+        fixture.controller().update(0.1);
+        Enemy livingMinion = fixture.world().getEnemies().stream()
+                .filter(enemy -> enemy != fixture.boss())
+                .filter(enemy -> !enemy.isDead())
+                .findFirst()
+                .orElseThrow();
+        Position positionAtVictory = livingMinion.getPosition();
+        fixture.controller().update(0.1);
+
+        assertAll(
+                () -> assertEquals(
+                        RunState.VICTORY,
+                        fixture.controller().getRunState()
+                ),
+                () -> assertSame(
+                        fixture.wave(),
+                        fixture.controller().getCurrentWave()
+                ),
+                () -> assertEquals(
+                        WaveProgression.MAX_WAVES,
+                        fixture.controller().getCurrentWave().getWaveNumber()
+                ),
+                () -> assertEquals(1, fixture.wave().getEnemies().size()),
+                () -> assertEquals(3, fixture.world().getEnemies().size()),
+                () -> assertEquals(positionAtVictory, livingMinion.getPosition())
+        );
+    }
+
+    @Test
+    void residualMinionCannotTurnCompletedFinalWaveIntoDefeat() {
+        Player player = new Player(
+                new Position(500.0, 500.0),
+                10,
+                MOVEMENT_SPEED
+        );
+        Enemy boss = new Enemy(
+                new Position(486.0, 500.0),
+                25,
+                1.0,
+                EnemyType.BOSS
+        );
+        Enemy residualMinion = new Enemy(
+                player.getPosition(),
+                100,
+                1.0,
+                EnemyType.BASIC
+        );
+        GameWorld world = new GameWorld(
+                WORLD_SIZE,
+                WORLD_SIZE,
+                player,
+                List.of(boss, residualMinion)
+        );
+        world.addProjectile(projectileAt(
+                476.0,
+                500.0,
+                1.0,
+                0.0,
+                25,
+                100.0
+        ));
+        Wave finalWave = new Wave(15, List.of(boss));
+        GameController controller = new GameController(world, finalWave);
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(RunState.VICTORY, controller.getRunState()),
+                () -> assertEquals(10, player.getHealth().getCurrentHealth()),
+                () -> assertEquals(250, controller.getRunStatistics()
+                        .getExperienceGained()),
+                () -> assertEquals(1, controller.getRunStatistics()
+                        .getWavesCompleted())
         );
     }
 
@@ -2798,6 +3130,94 @@ class GameControllerTest {
             RunStatistics statistics,
             Weapon weapon,
             Wave completedWave,
+            GameController controller
+    ) {
+    }
+
+    private static void assertEnemyKillReward(
+            EnemyType enemyType,
+            int expectedReward,
+            int expectedLevel,
+            int expectedCurrentExperience
+    ) {
+        Enemy enemy = new Enemy(
+                new Position(486.0, 500.0),
+                20,
+                MOVEMENT_SPEED,
+                enemyType
+        );
+        GameWorld world = createWorld(500.0, 500.0, enemy);
+        world.addProjectile(projectileAt(
+                476.0,
+                500.0,
+                1.0,
+                0.0,
+                25,
+                100.0
+        ));
+        ExperienceProgression progression = new ExperienceProgression();
+        RunStatistics statistics = new RunStatistics();
+        GameController controller = new GameController(
+                world,
+                progression,
+                statistics
+        );
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertTrue(enemy.isDead()),
+                () -> assertEquals(expectedLevel, progression.getLevel()),
+                () -> assertEquals(
+                        expectedCurrentExperience,
+                        progression.getCurrentExperience()
+                ),
+                () -> assertEquals(1, statistics.getEnemiesDefeated()),
+                () -> assertEquals(
+                        expectedReward,
+                        statistics.getExperienceGained()
+                )
+        );
+    }
+
+    private static void advanceUpdates(GameController controller, int updateCount) {
+        for (int update = 0; update < updateCount; update++) {
+            controller.update(0.1);
+        }
+    }
+
+    private static BossEncounterFixture createBossEncounterFixture(int waveNumber) {
+        Player player = new Player(
+                new Position(900.0, 900.0),
+                100_000,
+                MOVEMENT_SPEED
+        );
+        Enemy boss = new Enemy(
+                new Position(100.0, 100.0),
+                EnemyType.BOSS.maxHealth(),
+                1.0,
+                EnemyType.BOSS
+        );
+        GameWorld world = new GameWorld(
+                WORLD_SIZE,
+                WORLD_SIZE,
+                player,
+                List.of(boss)
+        );
+        Wave wave = new Wave(waveNumber, List.of(boss));
+        GameController controller = new GameController(world, wave);
+        return new BossEncounterFixture(world, boss, wave, controller);
+    }
+
+    private static boolean isWithinWorld(Position position, GameWorld world) {
+        return position.x() >= 0.0 && position.x() <= world.getWidth()
+                && position.y() >= 0.0 && position.y() <= world.getHeight();
+    }
+
+    private record BossEncounterFixture(
+            GameWorld world,
+            Enemy boss,
+            Wave wave,
             GameController controller
     ) {
     }

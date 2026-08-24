@@ -164,8 +164,10 @@ public final class GameView {
     ) {
         if (runState == RunState.ACTIVE_WAVE) {
             if (currentWave != null) {
-                drawWaveHud(graphics, currentWave);
-                drawBossHealthBar(graphics, currentWave);
+                boolean bossHealthBarVisible = drawBossHealthBar(graphics, currentWave);
+                if (!bossHealthBarVisible) {
+                    drawWaveHud(graphics, currentWave);
+                }
             }
             return;
         }
@@ -214,14 +216,14 @@ public final class GameView {
         graphics.restore();
     }
 
-    private void drawBossHealthBar(GraphicsContext graphics, Wave currentWave) {
+    private boolean drawBossHealthBar(GraphicsContext graphics, Wave currentWave) {
         if (currentWave.getWaveNumber() != TOTAL_WAVES) {
-            return;
+            return false;
         }
 
         Enemy boss = findLivingBoss(currentWave);
         if (boss == null) {
-            return;
+            return false;
         }
 
         Health health = boss.getHealth();
@@ -259,6 +261,7 @@ public final class GameView {
         graphics.setLineWidth(2.0);
         graphics.strokeRect(barX, BOSS_BAR_Y, barWidth, BOSS_BAR_HEIGHT);
         graphics.restore();
+        return true;
     }
 
     private static Enemy findLivingBoss(Wave wave) {
