@@ -72,10 +72,6 @@ public final class WaveFactory {
             WaveConfig config,
             EnemyType type
     ) {
-        if (type == EnemyType.BASIC) {
-            return config.enemySpeed();
-        }
-
-        return type.movementSpeed();
+        return config.enemySpeed() * type.speedMultiplier();
     }
 }

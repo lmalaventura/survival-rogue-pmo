@@ -1,6 +1,7 @@
 package it.university.survivor.model;
 
 import it.university.survivor.model.enemy.MiniBoss;
+import it.university.survivor.model.enemy.EnemyType;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -17,6 +18,8 @@ class MiniBossTest {
 
         assertEquals(100.0, miniBoss.getPosition().x());
         assertEquals(200.0, miniBoss.getPosition().y());
+        assertEquals(EnemyType.MINIBOSS, miniBoss.getType());
+        assertEquals(300, miniBoss.getHealth().getMaxHealth());
         assertEquals(300, miniBoss.getHealth().getCurrentHealth());
         assertEquals(1.5, miniBoss.getMovementSpeed());
     }

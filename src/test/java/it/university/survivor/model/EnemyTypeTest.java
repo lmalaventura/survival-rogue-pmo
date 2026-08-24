@@ -1,7 +1,10 @@
 package it.university.survivor.model;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -10,48 +13,79 @@ import it.university.survivor.model.enemy.EnemyType;
 class EnemyTypeTest {
 
     @Test
-    void shouldHaveDifferentStatsForEnemyTypes() {
-        assertEquals(100, EnemyType.BASIC.maxHealth());
-        assertEquals(1.0, EnemyType.BASIC.movementSpeed());
-
-        assertEquals(60, EnemyType.FAST.maxHealth());
-        assertEquals(1.8, EnemyType.FAST.movementSpeed());
-
-        assertEquals(250, EnemyType.TANK.maxHealth());
-        assertEquals(0.5, EnemyType.TANK.movementSpeed());
-    }
-
-    @Test
-    void fastEnemyShouldBeFasterThanBasic() {
-        assertTrue(
-                EnemyType.FAST.movementSpeed() > EnemyType.BASIC.movementSpeed()
+    void shouldExposeDemoHealthAndSpeedStats() {
+        assertAll(
+                () -> assertStats(EnemyType.BASIC, 100, 1.0),
+                () -> assertStats(EnemyType.FAST, 60, 1.8),
+                () -> assertStats(EnemyType.TANK, 250, 0.5),
+                () -> assertStats(EnemyType.RANGED, 80, 0.8),
+                () -> assertStats(EnemyType.MINIBOSS, 500, 0.7),
+                () -> assertStats(EnemyType.BOSS, 1000, 0.6)
         );
     }
 
     @Test
-    void tankEnemyShouldHaveMoreHealthThanBasic() {
+    void shouldExposeCollisionRadiiConsistentWithEnemySize() {
+        assertAll(
+                () -> assertEquals(6.0, EnemyType.BASIC.collisionRadius()),
+                () -> assertEquals(5.0, EnemyType.FAST.collisionRadius()),
+                () -> assertEquals(8.0, EnemyType.TANK.collisionRadius()),
+                () -> assertEquals(6.0, EnemyType.RANGED.collisionRadius()),
+                () -> assertEquals(12.0, EnemyType.MINIBOSS.collisionRadius()),
+                () -> assertEquals(18.0, EnemyType.BOSS.collisionRadius())
+        );
+
         assertTrue(
-                EnemyType.TANK.maxHealth() > EnemyType.BASIC.maxHealth()
+                EnemyType.FAST.collisionRadius()
+                        < EnemyType.BASIC.collisionRadius()
+        );
+        assertTrue(
+                EnemyType.BASIC.collisionRadius()
+                        < EnemyType.TANK.collisionRadius()
+        );
+        assertTrue(
+                EnemyType.TANK.collisionRadius()
+                        < EnemyType.MINIBOSS.collisionRadius()
+        );
+        assertTrue(
+                EnemyType.MINIBOSS.collisionRadius()
+                        < EnemyType.BOSS.collisionRadius()
+        );
+    }
+
+    @Test
+    void bossTypesShouldHaveDistinctHealthInvariants() {
+        assertTrue(
+                EnemyType.MINIBOSS.maxHealth()
+                        > EnemyType.BASIC.maxHealth()
+        );
+        assertTrue(
+                EnemyType.BOSS.maxHealth()
+                        > EnemyType.MINIBOSS.maxHealth()
         );
     }
 
     @Test
     void shouldHaveAllRequiredEnemyTypes() {
-        assertTrue(contains(EnemyType.BASIC));
-        assertTrue(contains(EnemyType.FAST));
-        assertTrue(contains(EnemyType.TANK));
-        assertTrue(contains(EnemyType.RANGED));
-        assertTrue(contains(EnemyType.MINIBOSS));
-        assertTrue(contains(EnemyType.BOSS));
+        assertEquals(
+                Set.of(
+                        EnemyType.BASIC,
+                        EnemyType.FAST,
+                        EnemyType.TANK,
+                        EnemyType.RANGED,
+                        EnemyType.MINIBOSS,
+                        EnemyType.BOSS
+                ),
+                Set.of(EnemyType.values())
+        );
     }
 
-    private boolean contains(EnemyType type) {
-        for (EnemyType enemyType : EnemyType.values()) {
-            if (enemyType == type) {
-                return true;
-            }
-        }
-
-        return false;
+    private void assertStats(
+            EnemyType type,
+            int maxHealth,
+            double speedMultiplier
+    ) {
+        assertEquals(maxHealth, type.maxHealth());
+        assertEquals(speedMultiplier, type.speedMultiplier());
     }
 }

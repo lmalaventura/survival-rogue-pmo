@@ -12,6 +12,7 @@ import it.university.survivor.model.RunStatistics;
 import it.university.survivor.model.StatModifier;
 import it.university.survivor.model.UpgradeCatalog;
 import it.university.survivor.model.UpgradeChoiceSession;
+import it.university.survivor.model.enemy.EnemyType;
 import it.university.survivor.model.enemy.Wave;
 import it.university.survivor.model.enemy.WaveConfig;
 import it.university.survivor.model.enemy.WaveFactory;
@@ -33,15 +34,14 @@ import java.util.Random;
 public final class GameController {
 
     private static final double MAX_DELTA_SECONDS = 0.1;
-    private static final double ENEMY_CONTACT_DISTANCE = 14.0;
-    private static final double ENEMY_MIN_SEPARATION = 13.0;
+    private static final double PLAYER_COLLISION_RADIUS = 8.0;
+    private static final double PROJECTILE_COLLISION_RADIUS = 3.0;
+    private static final double ENEMY_SEPARATION_GAP = 1.0;
     private static final double PLAYER_MOVEMENT_SUBSTEP_DISTANCE = 1.0;
-    private static final double PROJECTILE_ENEMY_COLLISION_DISTANCE = 9.0;
     private static final double CONTACT_DISTANCE_TOLERANCE = 1.0e-9;
     private static final int ENEMY_CONTACT_DAMAGE = 10;
     private static final int ENEMY_EXPERIENCE_REWARD = 25;
     private static final double PLAYER_HIT_INVULNERABILITY_SECONDS = 0.5;
-    private static final int MAX_WAVES = 5;
     private static final double SPAWN_MARGIN = 24.0;
 
     private final GameWorld world;
@@ -523,7 +523,7 @@ public final class GameController {
                     candidatePosition.y() - enemyPosition.y()
             );
             double minimumAllowedDistance = Math.min(
-                    ENEMY_CONTACT_DISTANCE,
+                    playerEnemyContactDistance(enemy),
                     currentDistance
             );
 
@@ -547,8 +547,9 @@ public final class GameController {
             double deltaToPlayerX = playerPosition.x() - enemyPosition.x();
             double deltaToPlayerY = playerPosition.y() - enemyPosition.y();
             double distanceToPlayer = Math.hypot(deltaToPlayerX, deltaToPlayerY);
-            double maximumMovement = distanceToPlayer - ENEMY_CONTACT_DISTANCE;
-            if (isWithinContactDistance(distanceToPlayer)) {
+            double contactDistance = playerEnemyContactDistance(enemy);
+            double maximumMovement = distanceToPlayer - contactDistance;
+            if (isWithinContactDistance(distanceToPlayer, enemy)) {
                 continue;
             }
 
@@ -605,7 +606,7 @@ public final class GameController {
                     candidatePosition.y() - otherPosition.y()
             );
             double minimumAllowedDistance = Math.min(
-                    ENEMY_MIN_SEPARATION,
+                    enemySeparationDistance(movingEnemy, otherEnemy),
                     currentDistance
             );
 
@@ -635,7 +636,7 @@ public final class GameController {
             double deltaY = enemyPosition.y() - playerPosition.y();
             double distance = Math.hypot(deltaX, deltaY);
 
-            if (isWithinContactDistance(distance)) {
+            if (isWithinContactDistance(distance, enemy)) {
                 enemiesInContact++;
             }
         }
@@ -679,7 +680,7 @@ public final class GameController {
 
         runStatistics.recordWaveCompleted();
         world.clearProjectiles();
-        if (currentWave.getWaveNumber() >= MAX_WAVES) {
+        if (currentWave.getWaveNumber() >= WaveProgression.MAX_WAVES) {
             currentUpgradeSession = null;
             runState = RunState.VICTORY;
             return;
@@ -699,7 +700,8 @@ public final class GameController {
     }
 
     private void startNextWave() {
-        if (currentWave == null || currentWave.getWaveNumber() >= MAX_WAVES) {
+        if (currentWave == null
+                || currentWave.getWaveNumber() >= WaveProgression.MAX_WAVES) {
             throw new IllegalStateException("A next wave is not available");
         }
 
@@ -792,7 +794,7 @@ public final class GameController {
             double deltaX = enemyPosition.x() - projectilePosition.x();
             double deltaY = enemyPosition.y() - projectilePosition.y();
             double distance = Math.hypot(deltaX, deltaY);
-            if (distance <= PROJECTILE_ENEMY_COLLISION_DISTANCE
+            if (distance <= projectileEnemyCollisionDistance(enemy)
                     + CONTACT_DISTANCE_TOLERANCE) {
                 return enemy;
             }
@@ -806,7 +808,27 @@ public final class GameController {
                 || position.y() < 0.0 || position.y() > world.getHeight();
     }
 
-    private static boolean isWithinContactDistance(double distance) {
-        return distance <= ENEMY_CONTACT_DISTANCE + CONTACT_DISTANCE_TOLERANCE;
+    private static double playerEnemyContactDistance(Enemy enemy) {
+        return PLAYER_COLLISION_RADIUS + collisionRadius(enemy);
+    }
+
+    private static double enemySeparationDistance(Enemy firstEnemy, Enemy secondEnemy) {
+        return collisionRadius(firstEnemy)
+                + collisionRadius(secondEnemy)
+                + ENEMY_SEPARATION_GAP;
+    }
+
+    private static double projectileEnemyCollisionDistance(Enemy enemy) {
+        return PROJECTILE_COLLISION_RADIUS + collisionRadius(enemy);
+    }
+
+    private static double collisionRadius(Enemy enemy) {
+        EnemyType enemyType = enemy.getType();
+        return enemyType.collisionRadius();
+    }
+
+    private static boolean isWithinContactDistance(double distance, Enemy enemy) {
+        return distance <= playerEnemyContactDistance(enemy)
+                + CONTACT_DISTANCE_TOLERANCE;
     }
 }

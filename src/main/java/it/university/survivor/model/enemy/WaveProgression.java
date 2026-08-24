@@ -1,160 +1,87 @@
 package it.university.survivor.model.enemy;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public final class WaveProgression {
+
+    public static final int MAX_WAVES = 15;
 
     private WaveProgression() {
         // Utility class
     }
 
     public static WaveConfig getConfig(int waveNumber) {
-        if (waveNumber < 1) {
+        if (waveNumber < 1 || waveNumber > MAX_WAVES) {
             throw new IllegalArgumentException(
-                    "Wave number must be >= 1"
+                    "Wave number must be between 1 and " + MAX_WAVES
             );
         }
 
-        int enemyCount = calculateEnemyCount(waveNumber);
-        int enemyHealth = calculateEnemyHealth(waveNumber);
-        double enemySpeed = calculateEnemySpeed(waveNumber);
-
-        if (waveNumber == 1) {
-            return new WaveConfig(
-                    waveNumber,
-                    enemyCount,
-                    enemyHealth,
-                    enemySpeed,
-                    List.of(
-                            new EnemyWaveEntry(
-                                    EnemyType.BASIC,
-                                    enemyCount
-                            )
-                    )
-            );
-        }
-
-        if (waveNumber == 2) {
-            return new WaveConfig(
-                    waveNumber,
-                    enemyCount,
-                    enemyHealth,
-                    enemySpeed,
-                    List.of(
-                            new EnemyWaveEntry(
-                                    EnemyType.BASIC,
-                                    2
-                            ),
-                            new EnemyWaveEntry(
-                                    EnemyType.FAST,
-                                    2
-                            )
-                    )
-            );
-        }
-
-        if (waveNumber == 3) {
-            return new WaveConfig(
-                    waveNumber,
-                    enemyCount,
-                    enemyHealth,
-                    enemySpeed,
-                    List.of(
-                            new EnemyWaveEntry(
-                                    EnemyType.BASIC,
-                                    2
-                            ),
-                            new EnemyWaveEntry(
-                                    EnemyType.FAST,
-                                    2
-                            ),
-                            new EnemyWaveEntry(
-                                    EnemyType.TANK,
-                                    1
-                            )
-                    )
-            );
-        }
-
-        if (waveNumber == 4) {
-            return new WaveConfig(
-                    waveNumber,
-                    enemyCount,
-                    enemyHealth,
-                    enemySpeed,
-                    List.of(
-                            new EnemyWaveEntry(
-                                    EnemyType.BASIC,
-                                    2
-                            ),
-                            new EnemyWaveEntry(
-                                    EnemyType.FAST,
-                                    2
-                            ),
-                            new EnemyWaveEntry(
-                                    EnemyType.TANK,
-                                    2
-                            )
-                    )
-            );
-        }
-
-        /*
-         * Wave 5:
-         *
-         * BASIC    = 1
-         * FAST     = 2
-         * TANK     = 2
-         * RANGED   = 1
-         * MINIBOSS = 1
-         *
-         * Totale = 7
-         */
-        if (waveNumber == 5) {
-            return new WaveConfig(
-                    waveNumber,
-                    enemyCount,
-                    enemyHealth,
-                    enemySpeed,
-                    List.of(
-                            new EnemyWaveEntry(
-                                    EnemyType.BASIC,
-                                    1
-                            ),
-                            new EnemyWaveEntry(
-                                    EnemyType.FAST,
-                                    2
-                            ),
-                            new EnemyWaveEntry(
-                                    EnemyType.TANK,
-                                    2
-                            ),
-                            new EnemyWaveEntry(
-                                    EnemyType.RANGED,
-                                    1
-                            ),
-                            new EnemyWaveEntry(
-                                    EnemyType.MINIBOSS,
-                                    1
-                            )
-                    )
-            );
-        }
+        List<EnemyWaveEntry> composition = getComposition(waveNumber);
+        int enemyCount = composition.stream()
+                .mapToInt(EnemyWaveEntry::count)
+                .sum();
 
         return new WaveConfig(
                 waveNumber,
                 enemyCount,
-                enemyHealth,
-                enemySpeed,
-                createAdvancedComposition(
-                        waveNumber,
-                        enemyCount
-                )
+                calculateEnemyHealth(waveNumber),
+                calculateEnemySpeed(waveNumber),
+                composition
         );
     }
 
-    private static int calculateEnemyCount(int waveNumber) {
-        return 2 + waveNumber;
+    private static List<EnemyWaveEntry> getComposition(int waveNumber) {
+        return switch (waveNumber) {
+            case 1 -> composition(3, 0, 0, null);
+            case 2 -> composition(3, 1, 0, null);
+            case 3 -> composition(3, 2, 0, null);
+            case 4 -> composition(3, 2, 1, null);
+            case 5 -> composition(3, 0, 0, EnemyType.MINIBOSS);
+            case 6 -> composition(3, 2, 1, null);
+            case 7 -> composition(3, 3, 1, null);
+            case 8 -> composition(3, 3, 2, null);
+            case 9 -> composition(4, 3, 2, null);
+            case 10 -> composition(3, 2, 2, EnemyType.MINIBOSS);
+            case 11 -> composition(4, 3, 2, null);
+            case 12 -> composition(4, 3, 3, null);
+            case 13 -> composition(3, 4, 3, null);
+            case 14 -> composition(4, 3, 3, null);
+            case 15 -> composition(3, 3, 3, EnemyType.BOSS);
+            default -> throw new IllegalStateException(
+                    "Unsupported wave number: " + waveNumber
+            );
+        };
+    }
+
+    private static List<EnemyWaveEntry> composition(
+            int basicCount,
+            int fastCount,
+            int tankCount,
+            EnemyType specialType
+    ) {
+        List<EnemyWaveEntry> entries = new ArrayList<>();
+
+        addEntry(entries, EnemyType.BASIC, basicCount);
+        addEntry(entries, EnemyType.FAST, fastCount);
+        addEntry(entries, EnemyType.TANK, tankCount);
+
+        if (specialType != null) {
+            addEntry(entries, specialType, 1);
+        }
+
+        return List.copyOf(entries);
+    }
+
+    private static void addEntry(
+            List<EnemyWaveEntry> entries,
+            EnemyType type,
+            int count
+    ) {
+        if (count > 0) {
+            entries.add(new EnemyWaveEntry(type, count));
+        }
     }
 
     private static int calculateEnemyHealth(int waveNumber) {
@@ -163,82 +90,5 @@ public final class WaveProgression {
 
     private static double calculateEnemySpeed(int waveNumber) {
         return 80.0 + 2.0 * (waveNumber - 1);
-    }
-
-    private static List<EnemyWaveEntry> createAdvancedComposition(
-            int waveNumber,
-            int enemyCount
-    ) {
-        int fast = Math.max(1, waveNumber / 4);
-        int tank = Math.max(1, waveNumber / 5);
-
-        /*
-         * Wave 15 is the final boss wave.
-         */
-        if (waveNumber == 15) {
-            int basic = enemyCount - fast - tank - 1;
-
-            return List.of(
-                    new EnemyWaveEntry(
-                            EnemyType.BASIC,
-                            basic
-                    ),
-                    new EnemyWaveEntry(
-                            EnemyType.FAST,
-                            fast
-                    ),
-                    new EnemyWaveEntry(
-                            EnemyType.TANK,
-                            tank
-                    ),
-                    new EnemyWaveEntry(
-                            EnemyType.BOSS,
-                            1
-                    )
-            );
-        }
-
-        /*
-         * Every other multiple of five contains a miniboss.
-         */
-        if (waveNumber % 5 == 0) {
-            int basic = enemyCount - fast - tank - 1;
-
-            return List.of(
-                    new EnemyWaveEntry(
-                            EnemyType.BASIC,
-                            basic
-                    ),
-                    new EnemyWaveEntry(
-                            EnemyType.FAST,
-                            fast
-                    ),
-                    new EnemyWaveEntry(
-                            EnemyType.TANK,
-                            tank
-                    ),
-                    new EnemyWaveEntry(
-                            EnemyType.MINIBOSS,
-                            1
-                    )
-            );
-        }
-
-        int basic = enemyCount - fast - tank;
-
-        return List.of(
-                new EnemyWaveEntry(
-                        EnemyType.BASIC,
-                        basic
-                ),
-                new EnemyWaveEntry(
-                        EnemyType.FAST,
-                        fast
-                ),
-                new EnemyWaveEntry(
-                        EnemyType.TANK,
-                        tank
-                )
-        );
     }
 }
