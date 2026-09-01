@@ -60,23 +60,4 @@ public record WaveConfig(
         }
     }
 
-    public WaveConfig(
-            int waveNumber,
-            int enemyCount,
-            int enemyHealth,
-            double enemySpeed
-    ) {
-        this(
-                waveNumber,
-                enemyCount,
-                enemyHealth,
-                enemySpeed,
-                List.of(
-                        new EnemyWaveEntry(
-                                EnemyType.BASIC,
-                                enemyCount
-                        )
-                )
-        );
-    }
 }

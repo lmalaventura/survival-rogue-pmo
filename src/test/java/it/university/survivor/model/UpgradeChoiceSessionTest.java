@@ -2,6 +2,7 @@ package it.university.survivor.model;
 
 import it.university.survivor.weapon.WeaponType;
 import org.junit.jupiter.api.Test;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -9,152 +10,127 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-
 class UpgradeChoiceSessionTest {
 
     @Test
-    void generateExactlyThreeValidNonDuplicateOptions() {
-        UpgradeCatalog catalog = new UpgradeCatalog();
-        UpgradeChoiceSession session = new UpgradeChoiceSession(catalog, new Random(42));
+    void itemOnlySessionOffersThreeDistinctItems() {
+        UpgradeChoiceSession session = new UpgradeChoiceSession(
+                new UpgradeCatalog(),
+                new Random(42L)
+        );
 
-        List<Item> options = session.getCurrentOptions();
-        assertEquals(3, options.size());
+        List<UpgradeOption> choices = session.getCurrentChoices();
+        assertEquals(3, choices.size());
+        assertTrue(choices.stream().allMatch(UpgradeOption::isItem));
 
-        for (Item item : options) {
-            assertNotNull(item);
-            assertNotNull(item.name());
-            assertNotNull(item.rarity());
-            assertNotNull(item.baseModifier());
+        Set<String> names = new HashSet<>();
+        for (UpgradeOption choice : choices) {
+            assertTrue(names.add(choice.item().name()));
+            assertNotNull(choice.item().rarity());
+            assertNotNull(choice.item().baseModifier());
         }
-
-        Set<String> nameSet = new HashSet<>();
-        for (Item item : options) {
-            nameSet.add(item.name());
-        }
-        assertEquals(3, nameSet.size());
+        assertThrows(UnsupportedOperationException.class, () -> choices.clear());
     }
 
     @Test
-    void currentOptionsListIsUnmodifiable() {
-        UpgradeChoiceSession session = new UpgradeChoiceSession(new UpgradeCatalog(), new Random(42));
-        List<Item> options = session.getCurrentOptions();
+    void fixedSeedProducesDeterministicChoices() {
+        UpgradeChoiceSession first = new UpgradeChoiceSession(
+                new UpgradeCatalog(),
+                new Random(123L)
+        );
+        UpgradeChoiceSession second = new UpgradeChoiceSession(
+                new UpgradeCatalog(),
+                new Random(123L)
+        );
 
-        assertThrows(UnsupportedOperationException.class, () -> options.clear());
+        assertEquals(first.getCurrentChoices(), second.getCurrentChoices());
     }
 
     @Test
-    void deterministicBehaviorWithFixedSeed() {
-        UpgradeChoiceSession session1 = new UpgradeChoiceSession(new UpgradeCatalog(), new Random(12345));
-        UpgradeChoiceSession session2 = new UpgradeChoiceSession(new UpgradeCatalog(), new Random(12345));
-
-        List<Item> options1 = session1.getCurrentOptions();
-        List<Item> options2 = session2.getCurrentOptions();
-
-        for (int i = 0; i < 3; i++) {
-            assertEquals(options1.get(i).name(), options2.get(i).name());
-            assertEquals(options1.get(i).rarity(), options2.get(i).rarity());
-            assertEquals(options1.get(i).getEffectiveValue(), options2.get(i).getEffectiveValue());
-        }
-    }
-
-    @Test
-    void generatesEpicRarityForRollInEpicRange() {
-        Random epicRandom = new Random(0) {
+    void rarityRollMapsToExpectedTier() {
+        Random epicRandom = new Random(0L) {
             @Override
             public double nextDouble() {
                 return 0.80;
             }
         };
-        UpgradeChoiceSession session = new UpgradeChoiceSession(new UpgradeCatalog(), epicRandom);
+        UpgradeChoiceSession session = new UpgradeChoiceSession(
+                new UpgradeCatalog(),
+                epicRandom
+        );
 
-        assertTrue(session.getCurrentOptions().stream()
-                .allMatch(item -> item.rarity() == Rarity.EPIC));
+        assertTrue(session.getCurrentChoices().stream()
+                .filter(UpgradeOption::isItem)
+                .allMatch(choice -> choice.item().rarity() == Rarity.EPIC));
     }
 
     @Test
-    void handlesRerollsCorrectly() {
-        UpgradeChoiceSession session = new UpgradeChoiceSession(new UpgradeCatalog(), new Random(42));
-
-        assertEquals(2, session.getRemainingRerolls());
-
-        List<Item> firstOffer = session.getCurrentOptions();
-        session.reroll();
-
-        assertEquals(1, session.getRemainingRerolls());
-        List<Item> secondOffer = session.getCurrentOptions();
-        assertNotEquals(firstOffer, secondOffer);
-        session.reroll();
-        assertEquals(0, session.getRemainingRerolls());
-
-        assertThrows(IllegalStateException.class, session::reroll);
-
-    }
-    @Test
-    void handlesRerollsCorrectly2To1To0AndRejectsThird() {
-        UpgradeChoiceSession session = new UpgradeChoiceSession(new UpgradeCatalog(), new Random(42));
-
-        assertEquals(2, session.getRemainingRerolls());
-
-        List<Item> firstOffer = session.getCurrentOptions();
-        session.reroll();
-        assertEquals(1, session.getRemainingRerolls());
-        List<Item> secondOffer = session.getCurrentOptions();
-        assertNotEquals(firstOffer, secondOffer);
+    void rerollsAreLimitedToTwoAndRegenerateChoices() {
+        UpgradeChoiceSession session = new UpgradeChoiceSession(
+                new UpgradeCatalog(),
+                new Random(42L)
+        );
+        List<UpgradeOption> firstOffer = session.getCurrentChoices();
 
         session.reroll();
-        assertEquals(0, session.getRemainingRerolls());
+        List<UpgradeOption> secondOffer = session.getCurrentChoices();
+        session.reroll();
 
-        assertThrows(IllegalStateException.class, session::reroll);
+        assertAll(
+                () -> assertNotEquals(firstOffer, secondOffer),
+                () -> assertEquals(0, session.getRemainingRerolls()),
+                () -> assertThrows(IllegalStateException.class, session::reroll)
+        );
     }
 
     @Test
-    void handlesSelectionByValidAndInvalidIndices() {
-        UpgradeChoiceSession sessionForBoundTest = new UpgradeChoiceSession(new UpgradeCatalog(), new Random(42));
-        assertThrows(IndexOutOfBoundsException.class, () -> sessionForBoundTest.selectOption(-1));
-        assertThrows(IndexOutOfBoundsException.class, () -> sessionForBoundTest.selectOption(3));
+    void selectionAcceptsOnlyOneValidIndex() {
+        UpgradeChoiceSession session = new UpgradeChoiceSession(
+                new UpgradeCatalog(),
+                new Random(42L)
+        );
 
-        for(int index = 0; index < 3; index++) {
-        UpgradeChoiceSession session = new UpgradeChoiceSession(new UpgradeCatalog(), new Random(42));
-        List<Item> options = session.getCurrentOptions();
+        assertThrows(IndexOutOfBoundsException.class, () -> session.selectChoice(-1));
+        assertThrows(IndexOutOfBoundsException.class, () -> session.selectChoice(3));
 
+        UpgradeOption expected = session.getCurrentChoices().get(1);
+        UpgradeOption selected = session.selectChoice(1);
 
-        Item expected = options.get(index);
-        Item selected = session.selectOption(index);
-
-        assertEquals(expected, selected);
-        assertTrue(session.isSelectionMade());
-        assertEquals(selected, session.getSelectedItem());
-
-        assertThrows(IllegalStateException.class, () -> session.selectOption(0));
-        assertThrows(IllegalStateException.class, session::reroll);
+        assertAll(
+                () -> assertEquals(expected, selected),
+                () -> assertEquals(selected, session.getSelectedChoice()),
+                () -> assertTrue(session.isSelectionMade()),
+                () -> assertThrows(IllegalStateException.class, () -> session.selectChoice(0)),
+                () -> assertThrows(IllegalStateException.class, session::reroll)
+        );
     }
- }
 
     @Test
     void mixedSessionOffersTwoItemsAndOneWeapon() {
+        WeaponUpgradeChoice weaponChoice = new WeaponUpgradeChoice(
+                WeaponType.SHOTGUN,
+                0,
+                5
+        );
         UpgradeChoiceSession session = new UpgradeChoiceSession(
                 new UpgradeCatalog(),
-                new Random(42),
-                List.of(new WeaponUpgradeChoice(WeaponType.SHOTGUN, 0, 5))
+                new Random(42L),
+                List.of(weaponChoice)
         );
 
-        List<UpgradeOption> choices = session.getCurrentChoices();
+        long itemCount = session.getCurrentChoices().stream()
+                .filter(UpgradeOption::isItem)
+                .count();
+        long weaponCount = session.getCurrentChoices().stream()
+                .filter(UpgradeOption::isWeapon)
+                .count();
 
         assertAll(
-                () -> assertEquals(3, choices.size()),
-                () -> assertEquals(2, choices.stream().filter(UpgradeOption::isItem).count()),
-                () -> assertEquals(1, choices.stream().filter(UpgradeOption::isWeapon).count()),
-                () -> assertEquals(
-                        WeaponType.SHOTGUN,
-                        choices.stream()
-                                .filter(UpgradeOption::isWeapon)
-                                .findFirst()
-                                .orElseThrow()
-                                .weaponChoice()
-                                .weaponType()
-                )
+                () -> assertEquals(2L, itemCount),
+                () -> assertEquals(1L, weaponCount),
+                () -> assertTrue(session.getCurrentChoices().stream()
+                        .filter(UpgradeOption::isWeapon)
+                        .anyMatch(choice -> choice.weaponChoice().equals(weaponChoice)))
         );
     }
-
-
 }

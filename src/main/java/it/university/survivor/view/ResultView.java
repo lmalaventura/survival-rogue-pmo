@@ -15,9 +15,6 @@ import java.util.Objects;
 
 public final class ResultView extends VBox {
 
-    public ResultView(RunState runState, RunStatistics stats, int finalLevel) {
-        this(runState, stats, finalLevel, Map.of());
-    }
 
     public ResultView(
             RunState runState,

@@ -21,9 +21,6 @@ public final class UpgradeView extends VBox {
     private final VBox optionsContainer;
     private final Button rerollButton;
 
-    public UpgradeView(UpgradeChoiceSession session, UpgradeSelectionHandler handler) {
-        this(session, handler, () -> session.reroll());
-    }
 
     public UpgradeView(
             UpgradeChoiceSession session,

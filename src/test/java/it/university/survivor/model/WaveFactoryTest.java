@@ -9,9 +9,7 @@ import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
 
-import it.university.survivor.model.enemy.Boss;
 import it.university.survivor.model.enemy.EnemyType;
-import it.university.survivor.model.enemy.MiniBoss;
 import it.university.survivor.model.enemy.Wave;
 import it.university.survivor.model.enemy.WaveConfig;
 import it.university.survivor.model.enemy.WaveFactory;
@@ -56,7 +54,6 @@ class WaveFactoryTest {
         Wave wave = createWave(5);
         Enemy miniBoss = wave.getEnemies().get(3);
 
-        assertInstanceOf(MiniBoss.class, miniBoss);
         assertEquals(EnemyType.MINIBOSS, miniBoss.getType());
         assertEquals(500, maxHealth(miniBoss));
         assertEquals(500, miniBoss.getHealth().getCurrentHealth());
@@ -68,7 +65,6 @@ class WaveFactoryTest {
         Wave wave = createWave(10);
         Enemy miniBoss = wave.getEnemies().get(7);
 
-        assertInstanceOf(MiniBoss.class, miniBoss);
         assertEquals(500, maxHealth(miniBoss));
         assertEquals(98.0 * 0.7, speed(miniBoss), TOLERANCE);
     }
@@ -78,7 +74,6 @@ class WaveFactoryTest {
         Wave wave = createWave(15);
         Enemy boss = wave.getEnemies().get(9);
 
-        assertInstanceOf(Boss.class, boss);
         assertEquals(EnemyType.BOSS, boss.getType());
         assertEquals(1000, maxHealth(boss));
         assertEquals(1000, boss.getHealth().getCurrentHealth());

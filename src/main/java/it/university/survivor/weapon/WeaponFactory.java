@@ -17,7 +17,7 @@ public final class WeaponFactory {
         return new Weapon(
                 new WeaponStats(0.75, 25, 300.0),
                 new NearestEnemyAttackStrategy(),
-                new SpreadAttackStrategy(true),
+                new SpreadAttackStrategy(),
                 5,
                 new PatternEvolutionUpgrade(3, 20.0)
         );
@@ -26,8 +26,8 @@ public final class WeaponFactory {
     public static Weapon createShotgun() {
         return new Weapon(
                 new WeaponStats(1.20, 14, 260.0, 5, 55.0),
-                new SpreadAttackStrategy(true),
-                new SpreadAttackStrategy(true),
+                new SpreadAttackStrategy(),
+                new SpreadAttackStrategy(),
                 5,
                 new PatternEvolutionUpgrade(7, 75.0)
         );

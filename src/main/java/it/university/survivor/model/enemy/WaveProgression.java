@@ -8,7 +8,6 @@ public final class WaveProgression {
     public static final int MAX_WAVES = 15;
 
     private WaveProgression() {
-        // Utility class
     }
 
     public static WaveConfig getConfig(int waveNumber) {

@@ -6,6 +6,7 @@ import it.university.survivor.model.Item;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.RunStatistics;
 import it.university.survivor.model.enemy.Wave;
+import it.university.survivor.model.enemy.WaveProgression;
 import it.university.survivor.weapon.Weapon;
 import it.university.survivor.weapon.WeaponStats;
 import it.university.survivor.weapon.WeaponType;
@@ -20,8 +21,6 @@ import java.util.Map;
 import java.util.Objects;
 
 public final class RunInfoView extends VBox {
-
-    private static final int FINAL_WAVE_NUMBER = 15;
 
     public RunInfoView(
             Player player,
@@ -68,7 +67,7 @@ public final class RunInfoView extends VBox {
 
         addSection(
                 "RUN",
-                "Wave: " + currentWave.getWaveNumber() + " / " + FINAL_WAVE_NUMBER,
+                "Wave: " + currentWave.getWaveNumber() + " / " + WaveProgression.MAX_WAVES,
                 "Enemies defeated: " + runStatistics.getEnemiesDefeated(),
                 "Time: " + formatElapsedTime(runStatistics.getElapsedTime())
         );

@@ -1,52 +1,38 @@
 package it.university.survivor.weapon;
 
+import it.university.survivor.model.Enemy;
+import it.university.survivor.model.Position;
+import org.junit.jupiter.api.Test;
+
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.Test;
 
-import it.university.survivor.model.Enemy;
-import it.university.survivor.model.Position;
+class SpreadAttackStrategyTest {
 
+    private final AttackStrategy strategy = new SpreadAttackStrategy();
 
+    @Test
+    void shouldCreateConfiguredSpread() {
+        Enemy target = new Enemy(new Position(10, 0), 100, 1.0);
+        WeaponStats stats = new WeaponStats(1.0, 10, 5.0, 3, 30.0);
 
-public class SpreadAttackStrategyTest{
-    
-@Test
-void shouldCreateCorrectNumberOfProjectiles() {
-    AttackStrategy strategy = new SpreadAttackStrategy();
+        List<ProjectileSpawnRequest> requests = strategy.attack(
+                new Position(0, 0),
+                List.of(target),
+                stats
+        );
 
-    Enemy enemy =
-            new Enemy(new Position(10, 0), 100, 1.0);
+        assertEquals(3, requests.size());
+        assertTrue(requests.get(0).directionY() < 0.0);
+        assertEquals(0.0, requests.get(1).directionY(), 1e-9);
+        assertTrue(requests.get(2).directionY() > 0.0);
+    }
 
-    WeaponStats stats =
-            new WeaponStats(1.0, 10, 5.0, 3, 30.0);
-
-    List<ProjectileSpawnRequest> requests =
-            strategy.attackMultiple(
-                    new Position(0, 0),
-                    List.of(enemy),
-                    stats
-            );
-
-    assertEquals(3, requests.size());
-}
-@Test
-void shouldNotAttackWithoutTarget() {
-    AttackStrategy strategy = new SpreadAttackStrategy(true);
-
-    WeaponStats stats =
-            new WeaponStats(1.0, 10, 5.0, 3, 30.0);
-
-    List<ProjectileSpawnRequest> requests =
-            strategy.attackMultiple(
-                    new Position(0, 0),
-                    List.of(),
-                    stats
-            );
-
-    assertTrue(requests.isEmpty());
-}
-
+    @Test
+    void shouldRequireLivingTarget() {
+        WeaponStats stats = new WeaponStats(1.0, 10, 5.0, 3, 30.0);
+        assertTrue(strategy.attack(new Position(0, 0), List.of(), stats).isEmpty());
+    }
 }

@@ -1,116 +1,69 @@
 package it.university.survivor.weapon;
 
+import it.university.survivor.model.Enemy;
+import it.university.survivor.model.Position;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
-import it.university.survivor.model.Enemy;
-import it.university.survivor.model.Position;
-
-public class BurstAttackStrategy implements AttackStrategy {
+public final class BurstAttackStrategy implements AttackStrategy {
 
     @Override
-    public Optional<ProjectileSpawnRequest> attack(
+    public List<ProjectileSpawnRequest> attack(
             Position playerPosition,
             Collection<? extends Enemy> targets,
-            WeaponStats stats) {
+            WeaponStats stats
+    ) {
+        Objects.requireNonNull(playerPosition, "Player position must not be null");
+        Objects.requireNonNull(targets, "Targets must not be null");
+        Objects.requireNonNull(stats, "Stats must not be null");
 
-        List<ProjectileSpawnRequest> requests =
-                attackMultiple(
-                        playerPosition,
-                        targets,
-                        stats
-                );
-
-        return requests.isEmpty()
-                ? Optional.empty()
-                : Optional.of(requests.get(0));
-    }
-
-    @Override
-    public List<ProjectileSpawnRequest> attackMultiple(
-            Position playerPosition,
-            Collection<? extends Enemy> targets,
-            WeaponStats stats) {
-
-        Objects.requireNonNull(playerPosition);
-        Objects.requireNonNull(targets);
-        Objects.requireNonNull(stats);
-
-        List<Enemy> living = new ArrayList<>();
-
+        List<Enemy> livingTargets = new ArrayList<>();
         for (Enemy target : targets) {
-
-            if (target != null
-                    && !target.isDead()
-                    && target.getPosition() != null) {
-
-                living.add(target);
+            if (target != null && !target.isDead()) {
+                livingTargets.add(target);
             }
         }
+        livingTargets.sort(Comparator.comparingDouble(
+                (Enemy enemy) -> distance(playerPosition, enemy.getPosition())
+        ).reversed());
 
-        living.sort(
-                Comparator.comparingDouble(
-                        e -> distance(
-                                playerPosition,
-                                e.getPosition()
-                        )
-                )
-        );
-
-        int requestCount =
-                Math.min(
-                        stats.getProjectileCount(),
-                        living.size()
-                );
-
-        List<ProjectileSpawnRequest> requests =
-                new ArrayList<>(requestCount);
-
-        for (int i = 0; i < requestCount; i++) {
-
-            Position target =
-                    living.get(i).getPosition();
-
-            double dx =
-                    target.x() - playerPosition.x();
-
-            double dy =
-                    target.y() - playerPosition.y();
-
-            double distance =
-                    Math.hypot(dx, dy);
-
-            if (distance < 1e-6) {
-                dx = 1.0;
-                dy = 0.0;
-                distance = 1.0;
-            }
-
-            requests.add(
-                    new ProjectileSpawnRequest(
-                            playerPosition,
-                            dx / distance,
-                            dy / distance,
-                            stats.getDamage(),
-                            stats.getProjectileSpeed()
-                    )
-            );
+        int requestCount = Math.min(stats.getProjectileCount(), livingTargets.size());
+        List<ProjectileSpawnRequest> requests = new ArrayList<>(requestCount);
+        for (int index = 0; index < requestCount; index++) {
+            Enemy target = livingTargets.get(index);
+            requests.add(createRequest(playerPosition, target.getPosition(), stats));
         }
-
-        return requests;
+        return List.copyOf(requests);
     }
 
-    private static double distance(
-            Position a,
-            Position b) {
+    private static ProjectileSpawnRequest createRequest(
+            Position origin,
+            Position target,
+            WeaponStats stats
+    ) {
+        double deltaX = target.x() - origin.x();
+        double deltaY = target.y() - origin.y();
+        double distance = Math.hypot(deltaX, deltaY);
+        if (distance < 1e-6) {
+            deltaX = 1.0;
+            deltaY = 0.0;
+            distance = 1.0;
+        }
 
-        return Math.hypot(
-                b.x() - a.x(),
-                b.y() - a.y()
+        return new ProjectileSpawnRequest(
+                origin,
+                deltaX / distance,
+                deltaY / distance,
+                stats.getDamage(),
+                stats.getProjectileSpeed()
         );
+    }
+
+    private static double distance(Position first, Position second) {
+        return Math.hypot(second.x() - first.x(), second.y() - first.y());
     }
 }

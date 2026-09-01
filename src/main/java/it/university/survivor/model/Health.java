@@ -51,22 +51,6 @@ public final class Health {
         currentHealth = Math.max(0, currentHealth - amount);
     }
 
-    public void heal(int amount) {
-        if (amount < 0) {
-            throw new IllegalArgumentException("Healing must not be negative");
-        }
-        if (currentHealth == 0 || currentHealth == maxHealth) {
-            return;
-        }
-
-        int missingHealth = maxHealth - currentHealth;
-        currentHealth += Math.min(amount, missingHealth);
-    }
-
-    public boolean isAlive() {
-        return currentHealth > 0;
-    }
-
     public boolean isDead() {
         return currentHealth == 0;
     }

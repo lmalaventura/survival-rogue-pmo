@@ -1,14 +1,13 @@
 package it.university.survivor.weapon;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-
 import it.university.survivor.model.Enemy;
 import it.university.survivor.model.Position;
 
-public class Weapon {
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+
+public final class Weapon {
 
     public static final int DEFAULT_MAX_LEVEL = 5;
 
@@ -17,35 +16,11 @@ public class Weapon {
     private final AttackStrategy evolvedAttackStrategy;
     private final WeaponUpgrade evolutionUpgrade;
     private final int maxLevel;
+    private int level = 1;
+    private double cooldownRemaining;
 
-    private int level;
-    private double currentCooldown;
-
-    public Weapon(
-            WeaponStats stats,
-            AttackStrategy attackStrategy
-    ) {
-        this(
-                stats,
-                attackStrategy,
-                attackStrategy,
-                DEFAULT_MAX_LEVEL,
-                null
-        );
-    }
-
-    public Weapon(
-            WeaponStats stats,
-            AttackStrategy attackStrategy,
-            AttackStrategy evolvedAttackStrategy
-    ) {
-        this(
-                stats,
-                attackStrategy,
-                evolvedAttackStrategy,
-                DEFAULT_MAX_LEVEL,
-                null
-        );
+    public Weapon(WeaponStats stats, AttackStrategy attackStrategy) {
+        this(stats, attackStrategy, attackStrategy, DEFAULT_MAX_LEVEL, null);
     }
 
     public Weapon(
@@ -54,13 +29,7 @@ public class Weapon {
             AttackStrategy evolvedAttackStrategy,
             int maxLevel
     ) {
-        this(
-                stats,
-                attackStrategy,
-                evolvedAttackStrategy,
-                maxLevel,
-                null
-        );
+        this(stats, attackStrategy, evolvedAttackStrategy, maxLevel, null);
     }
 
     public Weapon(
@@ -79,77 +48,45 @@ public class Weapon {
                 evolvedAttackStrategy,
                 "Evolved attack strategy must not be null"
         );
-
         if (maxLevel < 2) {
-            throw new IllegalArgumentException(
-                    "Maximum level must be at least two"
-            );
+            throw new IllegalArgumentException("Maximum level must be at least two");
         }
-
         this.maxLevel = maxLevel;
         this.evolutionUpgrade = evolutionUpgrade;
-        this.level = 1;
-        this.currentCooldown = 0.0;
     }
 
-    public void update(double deltaTimeSeconds) {
-
-        if (!Double.isFinite(deltaTimeSeconds) || deltaTimeSeconds < 0) {
-            throw new IllegalArgumentException(
-                    "Delta time must be finite and >= 0"
-            );
+    public void update(double deltaSeconds) {
+        if (!Double.isFinite(deltaSeconds) || deltaSeconds < 0.0) {
+            throw new IllegalArgumentException("Delta time must be finite and non-negative");
         }
-
-        currentCooldown = Math.max(
-                0.0,
-                currentCooldown - deltaTimeSeconds
-        );
+        cooldownRemaining = Math.max(0.0, cooldownRemaining - deltaSeconds);
     }
 
     public boolean canAttack() {
-        return currentCooldown <= 0.0;
+        return cooldownRemaining == 0.0;
     }
 
-    public Optional<ProjectileSpawnRequest> attack(
-            Position playerPosition,
-            Collection<? extends Enemy> targets
-    ) {
-        List<ProjectileSpawnRequest> requests = attackAll(
-                playerPosition,
-                targets
-        );
-
-        return requests.isEmpty()
-                ? Optional.empty()
-                : Optional.of(requests.get(0));
-    }
-
-    public List<ProjectileSpawnRequest> attackAll(
+    public List<ProjectileSpawnRequest> attack(
             Position playerPosition,
             Collection<? extends Enemy> targets
     ) {
         Objects.requireNonNull(playerPosition, "Player position must not be null");
         Objects.requireNonNull(targets, "Targets must not be null");
-
         if (!canAttack()) {
             return List.of();
         }
 
-        List<ProjectileSpawnRequest> requests = attackStrategy.attackMultiple(
-                playerPosition,
-                targets,
-                stats
+        List<ProjectileSpawnRequest> requests = List.copyOf(
+                attackStrategy.attack(playerPosition, targets, stats)
         );
-
         if (!requests.isEmpty()) {
-            currentCooldown = stats.getCooldownSeconds();
+            cooldownRemaining = stats.getCooldownSeconds();
         }
-
-        return List.copyOf(requests);
+        return requests;
     }
 
-    public double getCooldown() {
-        return currentCooldown;
+    public double getCooldownRemaining() {
+        return cooldownRemaining;
     }
 
     public WeaponStats getCurrentStats() {
@@ -173,17 +110,15 @@ public class Weapon {
     }
 
     public boolean isEvolved() {
-        return level >= maxLevel;
+        return level == maxLevel;
     }
 
     public void levelUp() {
-        if (level >= maxLevel) {
+        if (isEvolved()) {
             return;
         }
-
         level++;
-
-        if (level == maxLevel) {
+        if (isEvolved()) {
             attackStrategy = evolvedAttackStrategy;
             if (evolutionUpgrade != null) {
                 upgrade(evolutionUpgrade);

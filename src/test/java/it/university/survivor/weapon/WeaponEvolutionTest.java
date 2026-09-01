@@ -74,7 +74,7 @@ class WeaponEvolutionTest {
             weapon.levelUp();
         }
 
-        assertEquals(7, weapon.attackAll(new Position(0, 0), List.of(target)).size());
-        assertEquals(1.20, weapon.getCooldown(), 1e-9);
+        assertEquals(7, weapon.attack(new Position(0, 0), List.of(target)).size());
+        assertEquals(1.20, weapon.getCooldownRemaining(), 1e-9);
     }
 }

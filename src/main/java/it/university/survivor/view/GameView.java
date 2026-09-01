@@ -71,9 +71,6 @@ public final class GameView {
     private final ExperienceProgression experienceProgression;
     private boolean heartHovered;
 
-    public GameView(double width, double height) {
-        this(width, height, new ExperienceProgression());
-    }
 
     public GameView(
             double width,

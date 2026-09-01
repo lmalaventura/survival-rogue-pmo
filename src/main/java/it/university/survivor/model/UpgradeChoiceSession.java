@@ -6,16 +6,17 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
-public class UpgradeChoiceSession {
+public final class UpgradeChoiceSession {
 
     private static final int OPTION_COUNT = 3;
     private static final int MIXED_ITEM_COUNT = 2;
+    private static final int INITIAL_REROLLS = 2;
 
     private final UpgradeCatalog catalog;
     private final Random random;
     private final List<WeaponUpgradeChoice> weaponChoices;
     private List<UpgradeOption> currentChoices;
-    private int remainingRerolls;
+    private int remainingRerolls = INITIAL_REROLLS;
     private UpgradeOption selectedChoice;
 
     public UpgradeChoiceSession(UpgradeCatalog catalog, Random random) {
@@ -34,24 +35,11 @@ public class UpgradeChoiceSession {
             throw new IllegalArgumentException("Weapon choices must not contain null values");
         }
         this.weaponChoices = List.copyOf(weaponChoices);
-        this.remainingRerolls = 2;
-        this.selectedChoice = null;
-        this.currentChoices = generateChoices();
+        currentChoices = generateChoices();
     }
 
     public List<UpgradeOption> getCurrentChoices() {
         return List.copyOf(currentChoices);
-    }
-
-    /**
-     * Legacy item-only accessor kept for existing item-focused callers/tests.
-     * Mixed runtime sessions should use {@link #getCurrentChoices()}.
-     */
-    public List<Item> getCurrentOptions() {
-        return currentChoices.stream()
-                .filter(UpgradeOption::isItem)
-                .map(UpgradeOption::item)
-                .toList();
     }
 
     public int getRemainingRerolls() {
@@ -66,21 +54,11 @@ public class UpgradeChoiceSession {
         return selectedChoice;
     }
 
-    public Item getSelectedItem() {
-        if (selectedChoice == null) {
-            return null;
-        }
-        if (!selectedChoice.isItem()) {
-            throw new IllegalStateException("The selected choice is not an Item");
-        }
-        return selectedChoice.item();
-    }
-
     public void reroll() {
         if (isSelectionMade()) {
             throw new IllegalStateException("Cannot reroll after a selection has been made");
         }
-        if (remainingRerolls <= 0) {
+        if (remainingRerolls == 0) {
             throw new IllegalStateException("No rerolls remaining");
         }
         remainingRerolls--;
@@ -98,15 +76,6 @@ public class UpgradeChoiceSession {
         return selectedChoice;
     }
 
-    public Item selectOption(int index) {
-        UpgradeOption selected = selectChoice(index);
-        if (!selected.isItem()) {
-            selectedChoice = null;
-            throw new IllegalStateException("The selected option is not an Item");
-        }
-        return selected.item();
-    }
-
     private List<UpgradeOption> generateChoices() {
         List<UpgradeCatalog.Template> templates = new ArrayList<>(catalog.getTemplates());
         Collections.shuffle(templates, random);
@@ -115,19 +84,17 @@ public class UpgradeChoiceSession {
         List<UpgradeOption> choices = new ArrayList<>(OPTION_COUNT);
         for (int index = 0; index < itemCount; index++) {
             UpgradeCatalog.Template template = templates.get(index);
-            Rarity drawnRarity = drawRarity();
             choices.add(UpgradeOption.forItem(new Item(
                     template.name(),
-                    drawnRarity,
+                    drawRarity(),
                     template.modifier()
             )));
         }
 
         if (!weaponChoices.isEmpty()) {
-            WeaponUpgradeChoice weaponChoice = weaponChoices.get(
-                    random.nextInt(weaponChoices.size())
-            );
-            choices.add(UpgradeOption.forWeapon(weaponChoice));
+            choices.add(UpgradeOption.forWeapon(
+                    weaponChoices.get(random.nextInt(weaponChoices.size()))
+            ));
             Collections.shuffle(choices, random);
         }
 
@@ -138,14 +105,16 @@ public class UpgradeChoiceSession {
         double roll = random.nextDouble();
         if (roll < 0.50) {
             return Rarity.COMMON;
-        } else if (roll < 0.75) {
-            return Rarity.RARE;
-        } else if (roll < 0.90) {
-            return Rarity.EPIC;
-        } else if (roll < 0.98) {
-            return Rarity.LEGENDARY;
-        } else {
-            return Rarity.ULTRA;
         }
+        if (roll < 0.75) {
+            return Rarity.RARE;
+        }
+        if (roll < 0.90) {
+            return Rarity.EPIC;
+        }
+        if (roll < 0.98) {
+            return Rarity.LEGENDARY;
+        }
+        return Rarity.ULTRA;
     }
 }

@@ -1,168 +1,74 @@
 package it.university.survivor.weapon;
 
+import it.university.survivor.model.Enemy;
+import it.university.survivor.model.Position;
+import org.junit.jupiter.api.Test;
+
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.Test;
-
-import it.university.survivor.model.Enemy;
-import it.university.survivor.model.Position;
 
 class NearestEnemyAttackStrategyTest {
 
-    private final AttackStrategy strategy =
-            new NearestEnemyAttackStrategy();
-
-    private final WeaponStats stats =
-            new WeaponStats(1.0, 20, 5.0);
+    private final AttackStrategy strategy = new NearestEnemyAttackStrategy();
+    private final WeaponStats stats = new WeaponStats(1.0, 20, 5.0);
 
     @Test
-    void shouldAttackNearestEnemy() {
-        Position playerPosition = new Position(0, 0);
+    void shouldAttackNearestLivingEnemy() {
+        Position player = new Position(0, 0);
+        Enemy far = new Enemy(new Position(10, 0), 100, 1.0);
+        Enemy dead = new Enemy(new Position(1, 0), 100, 1.0);
+        Enemy near = new Enemy(new Position(0, 3), 100, 1.0);
+        dead.takeDamage(100);
 
-        Enemy farEnemy =
-                new Enemy(
-                        new Position(10, 0),
-                        100,
-                        1.0
-                );
+        List<ProjectileSpawnRequest> requests = strategy.attack(
+                player,
+                List.of(far, dead, near),
+                stats
+        );
 
-        Enemy nearEnemy =
-                new Enemy(
-                        new Position(0, 3),
-                        100,
-                        1.0
-                );
-
-        Optional<ProjectileSpawnRequest> result =
-                strategy.attack(
-                        playerPosition,
-                        List.of(farEnemy, nearEnemy),
-                        stats
-                );
-
-        assertTrue(result.isPresent());
-
-        ProjectileSpawnRequest request = result.get();
-
-        assertEquals(playerPosition, request.origin());
+        assertEquals(1, requests.size());
+        ProjectileSpawnRequest request = requests.get(0);
+        assertEquals(player, request.origin());
         assertEquals(0.0, request.directionX(), 1e-9);
         assertEquals(1.0, request.directionY(), 1e-9);
         assertEquals(20, request.damage());
-        assertEquals(5.0, request.speed());
+        assertEquals(5.0, request.speed(), 1e-9);
     }
 
     @Test
-    void shouldReturnEmptyWhenThereAreNoEnemies() {
-        Optional<ProjectileSpawnRequest> result =
-                strategy.attack(
-                        new Position(0, 0),
-                        List.of(),
-                        stats
-                );
+    void shouldReturnEmptyWhenNoLivingTargetExists() {
+        Enemy dead = new Enemy(new Position(5, 0), 100, 1.0);
+        dead.takeDamage(100);
 
-        assertTrue(result.isEmpty());
+        assertTrue(strategy.attack(new Position(0, 0), List.of(), stats).isEmpty());
+        assertTrue(strategy.attack(new Position(0, 0), List.of(dead), stats).isEmpty());
     }
 
     @Test
-    void shouldIgnoreDeadEnemies() {
-        Enemy deadEnemy =
-                new Enemy(
-                        new Position(1, 0),
-                        100,
-                        1.0
-                );
+    void shouldNormalizeDirection() {
+        Enemy enemy = new Enemy(new Position(3, 4), 100, 1.0);
 
-        deadEnemy.takeDamage(100);
-
-        Enemy aliveEnemy =
-                new Enemy(
-                        new Position(0, 5),
-                        100,
-                        1.0
-                );
-
-        Optional<ProjectileSpawnRequest> result =
-                strategy.attack(
-                        new Position(0, 0),
-                        List.of(deadEnemy, aliveEnemy),
-                        stats
-                );
-
-        assertTrue(result.isPresent());
-
-        ProjectileSpawnRequest request = result.get();
-
-        assertEquals(0.0, request.directionX(), 1e-9);
-        assertEquals(1.0, request.directionY(), 1e-9);
-    }
-
-    @Test
-    void shouldReturnEmptyWhenAllEnemiesAreDead() {
-        Enemy enemy =
-                new Enemy(
-                        new Position(5, 0),
-                        100,
-                        1.0
-                );
-
-        enemy.takeDamage(100);
-
-        Optional<ProjectileSpawnRequest> result =
-                strategy.attack(
-                        new Position(0, 0),
-                        List.of(enemy),
-                        stats
-                );
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void shouldCalculateNormalizedDirection() {
-        Enemy enemy =
-                new Enemy(
-                        new Position(3, 4),
-                        100,
-                        1.0
-                );
-
-        Optional<ProjectileSpawnRequest> result =
-                strategy.attack(
-                        new Position(0, 0),
-                        List.of(enemy),
-                        stats
-                );
-
-        assertTrue(result.isPresent());
-
-        ProjectileSpawnRequest request = result.get();
+        ProjectileSpawnRequest request = strategy.attack(
+                new Position(0, 0),
+                List.of(enemy),
+                stats
+        ).get(0);
 
         assertEquals(0.6, request.directionX(), 1e-9);
         assertEquals(0.8, request.directionY(), 1e-9);
     }
 
     @Test
-    void shouldHandleEnemyAtSamePositionAsPlayer() {
-        Enemy enemy =
-                new Enemy(
-                        new Position(0, 0),
-                        100,
-                        1.0
-                );
+    void shouldUseStableDirectionWhenTargetOverlapsPlayer() {
+        Enemy enemy = new Enemy(new Position(0, 0), 100, 1.0);
 
-        Optional<ProjectileSpawnRequest> result =
-                strategy.attack(
-                        new Position(0, 0),
-                        List.of(enemy),
-                        stats
-                );
-
-        assertTrue(result.isPresent());
-
-        ProjectileSpawnRequest request = result.get();
+        ProjectileSpawnRequest request = strategy.attack(
+                new Position(0, 0),
+                List.of(enemy),
+                stats
+        ).get(0);
 
         assertEquals(1.0, request.directionX(), 1e-9);
         assertEquals(0.0, request.directionY(), 1e-9);

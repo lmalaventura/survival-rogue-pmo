@@ -1,18 +1,17 @@
 package it.university.survivor.weapon;
 
+import it.university.survivor.model.Enemy;
+import it.university.survivor.model.Position;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import it.university.survivor.model.Enemy;
-import it.university.survivor.model.Position;
 
 class WeaponTest {
 
@@ -21,219 +20,78 @@ class WeaponTest {
 
     @BeforeEach
     void setUp() {
-        stats = new WeaponStats(
-                1.0,
-                10,
-                5.0
-        );
-
-        weapon = new Weapon(
-                stats,
-                new NearestEnemyAttackStrategy()
-        );
+        stats = new WeaponStats(1.0, 10, 5.0);
+        weapon = new Weapon(stats, new NearestEnemyAttackStrategy());
     }
 
     @Test
-    void shouldBeAbleToAttackInitially() {
+    void shouldStartReadyWithConfiguredStats() {
         assertTrue(weapon.canAttack());
-        assertEquals(0.0, weapon.getCooldown(), 1e-9);
-    }
-
-    @Test
-    void shouldReturnCurrentStats() {
+        assertEquals(0.0, weapon.getCooldownRemaining(), 1e-9);
         assertSame(stats, weapon.getCurrentStats());
     }
 
     @Test
-    void shouldAttackEnemy() {
-        Enemy enemy =
-                new Enemy(
-                        new Position(5, 0),
-                        100,
-                        1.0
-                );
-
-        Optional<ProjectileSpawnRequest> result =
-                weapon.attack(
-                        new Position(0, 0),
-                        List.of(enemy)
-                );
-
-        assertTrue(result.isPresent());
-
-        ProjectileSpawnRequest request = result.get();
-
-        assertEquals(10, request.damage());
-        assertEquals(5.0, request.speed());
-    }
-
-    @Test
-    void shouldEnterCooldownAfterSuccessfulAttack() {
-        Enemy enemy =
-                new Enemy(
-                        new Position(5, 0),
-                        100,
-                        1.0
-                );
-
-        weapon.attack(
+    void shouldAttackAndStartCooldown() {
+        List<ProjectileSpawnRequest> requests = weapon.attack(
                 new Position(0, 0),
-                List.of(enemy)
+                List.of(enemyAt(5, 0))
         );
 
+        assertEquals(1, requests.size());
+        assertEquals(10, requests.get(0).damage());
+        assertEquals(5.0, requests.get(0).speed(), 1e-9);
         assertFalse(weapon.canAttack());
-        assertEquals(1.0, weapon.getCooldown(), 1e-9);
+        assertEquals(1.0, weapon.getCooldownRemaining(), 1e-9);
+        assertTrue(weapon.attack(new Position(0, 0), List.of(enemyAt(5, 0))).isEmpty());
     }
 
     @Test
-    void shouldNotAttackDuringCooldown() {
-        Enemy enemy =
-                new Enemy(
-                        new Position(5, 0),
-                        100,
-                        1.0
-                );
-
-        Optional<ProjectileSpawnRequest> first =
-                weapon.attack(
-                        new Position(0, 0),
-                        List.of(enemy)
-                );
-
-        Optional<ProjectileSpawnRequest> second =
-                weapon.attack(
-                        new Position(0, 0),
-                        List.of(enemy)
-                );
-
-        assertTrue(first.isPresent());
-        assertTrue(second.isEmpty());
-    }
-
-    @Test
-    void shouldReduceCooldownAfterUpdate() {
-        Enemy enemy =
-                new Enemy(
-                        new Position(5, 0),
-                        100,
-                        1.0
-                );
-
-        weapon.attack(
-                new Position(0, 0),
-                List.of(enemy)
-        );
-
-        weapon.update(0.4);
-
-        assertEquals(0.6, weapon.getCooldown(), 1e-9);
-    }
-
-    @Test
-    void shouldReachZeroCooldown() {
-        Enemy enemy =
-                new Enemy(
-                        new Position(5, 0),
-                        100,
-                        1.0
-                );
-
-        weapon.attack(
-                new Position(0, 0),
-                List.of(enemy)
-        );
-
-        weapon.update(1.0);
-
-        assertEquals(0.0, weapon.getCooldown(), 1e-9);
+    void shouldNotStartCooldownWhenAttackProducesNothing() {
+        assertTrue(weapon.attack(new Position(0, 0), List.of()).isEmpty());
         assertTrue(weapon.canAttack());
+        assertEquals(0.0, weapon.getCooldownRemaining(), 1e-9);
     }
 
     @Test
-    void shouldNeverHaveNegativeCooldown() {
-        Enemy enemy =
-                new Enemy(
-                        new Position(5, 0),
-                        100,
-                        1.0
-                );
-
-        weapon.attack(
-                new Position(0, 0),
-                List.of(enemy)
-        );
+    void shouldUpdateCooldownWithoutGoingNegative() {
+        weapon.attack(new Position(0, 0), List.of(enemyAt(5, 0)));
+        weapon.update(0.4);
+        assertEquals(0.6, weapon.getCooldownRemaining(), 1e-9);
 
         weapon.update(5.0);
-
-        assertEquals(0.0, weapon.getCooldown(), 1e-9);
-    }
-
-    @Test
-    void shouldNotStartCooldownWhenThereIsNoValidTarget() {
-        Optional<ProjectileSpawnRequest> result =
-                weapon.attack(
-                        new Position(0, 0),
-                        List.of()
-                );
-
-        assertTrue(result.isEmpty());
+        assertEquals(0.0, weapon.getCooldownRemaining(), 1e-9);
         assertTrue(weapon.canAttack());
-        assertEquals(0.0, weapon.getCooldown(), 1e-9);
     }
 
     @Test
-    void shouldRejectNegativeDeltaTime() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> weapon.update(-0.1)
-        );
+    void shouldRejectInvalidDeltaTime() {
+        assertThrows(IllegalArgumentException.class, () -> weapon.update(-0.1));
+        assertThrows(IllegalArgumentException.class, () -> weapon.update(Double.NaN));
+        assertThrows(IllegalArgumentException.class, () -> weapon.update(Double.POSITIVE_INFINITY));
     }
 
     @Test
-    void shouldRejectNaNDeltaTime() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> weapon.update(Double.NaN)
-        );
+    void shouldUseUpgradedDamage() {
+        weapon.upgrade(new PercentDamageUpgrade(0.10));
+
+        ProjectileSpawnRequest request = weapon.attack(
+                new Position(0, 0),
+                List.of(enemyAt(5, 0))
+        ).get(0);
+
+        assertEquals(11, request.damage());
     }
+
     @Test
-void shouldUseUpgradedDamageForNextAttack() {
-    weapon.upgrade(new PercentDamageUpgrade(0.10));
+    void shouldUseUpgradedCooldown() {
+        weapon.upgrade(new PercentCooldownUpgrade(0.05));
+        weapon.attack(new Position(0, 0), List.of(enemyAt(5, 0)));
 
-    Enemy enemy =
-            new Enemy(
-                    new Position(5, 0),
-                    100,
-                    1.0
-            );
+        assertEquals(0.95, weapon.getCooldownRemaining(), 1e-9);
+    }
 
-    Optional<ProjectileSpawnRequest> result =
-            weapon.attack(
-                    new Position(0, 0),
-                    List.of(enemy)
-            );
-
-    assertTrue(result.isPresent());
-    assertEquals(11, result.get().damage());
-}
-@Test
-void shouldUseUpgradedCooldownForNextAttack() {
-    weapon.upgrade(new PercentCooldownUpgrade(0.05));
-
-    Enemy enemy =
-            new Enemy(
-                    new Position(5, 0),
-                    100,
-                    1.0
-            );
-
-    Optional<ProjectileSpawnRequest> result =
-            weapon.attack(
-                    new Position(0, 0),
-                    List.of(enemy)
-            );
-
-    assertTrue(result.isPresent());
-    assertEquals(0.95, weapon.getCooldown(), 1e-9);
-}
+    private static Enemy enemyAt(double x, double y) {
+        return new Enemy(new Position(x, y), 100, 1.0);
+    }
 }
