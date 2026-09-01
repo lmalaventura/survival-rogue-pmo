@@ -312,6 +312,101 @@ class EnemyTest {
     }
 
     @Test
+    void rangedEnemyShouldRequestAttackOnlyInsidePreferredDistanceBand() {
+        Enemy enemy = new Enemy(
+                new Position(0.0, 0.0),
+                80,
+                0.8,
+                EnemyType.RANGED
+        );
+
+        assertFalse(enemy.canRequestRangedAttack(
+                new Position(301.0, 0.0)
+        ));
+        assertTrue(enemy.canRequestRangedAttack(
+                new Position(250.0, 0.0)
+        ));
+        assertFalse(enemy.canRequestRangedAttack(
+                new Position(199.0, 0.0)
+        ));
+    }
+
+    @Test
+    void rangedAttackDistanceBandShouldIncludeItsBoundaries() {
+        Enemy enemy = new Enemy(
+                new Position(0.0, 0.0),
+                80,
+                0.8,
+                EnemyType.RANGED
+        );
+
+        assertTrue(enemy.canRequestRangedAttack(
+                new Position(200.0, 0.0)
+        ));
+        assertTrue(enemy.canRequestRangedAttack(
+                new Position(300.0, 0.0)
+        ));
+    }
+
+    @Test
+    void rangedEnemyShouldBecomeReadyAfterTenCooldownUpdates() {
+        Enemy enemy = new Enemy(
+                new Position(0.0, 0.0),
+                80,
+                0.8,
+                EnemyType.RANGED
+        );
+        Position target = new Position(250.0, 0.0);
+
+        enemy.requestRangedAttack();
+
+        for (int update = 0; update < 9; update++) {
+            enemy.updateRangedCooldown(0.1);
+        }
+
+        assertFalse(enemy.canRequestRangedAttack(target));
+
+        enemy.updateRangedCooldown(0.1);
+
+        assertTrue(enemy.canRequestRangedAttack(target));
+    }
+
+    @Test
+    void rangedEnemyShouldRejectNullAttackTarget() {
+        Enemy enemy = new Enemy(
+                new Position(0.0, 0.0),
+                80,
+                0.8,
+                EnemyType.RANGED
+        );
+
+        assertThrows(
+                NullPointerException.class,
+                () -> enemy.canRequestRangedAttack(null)
+        );
+    }
+
+    @Test
+    void nonRangedEnemyShouldNeverRequestRangedAttack() {
+        Enemy enemy = new Enemy(
+                new Position(0.0, 0.0),
+                100,
+                1.0,
+                EnemyType.BASIC
+        );
+        Position target = new Position(250.0, 0.0);
+
+        assertFalse(enemy.canRequestRangedAttack());
+        assertFalse(enemy.canRequestRangedAttack(target));
+
+        enemy.requestRangedAttack();
+        enemy.updateRangedCooldown(1.0);
+
+        assertFalse(enemy.canRequestRangedAttack());
+        assertFalse(enemy.canRequestRangedAttack(target));
+    }
+
+    @Test
     void rangedEnemyShouldRejectNegativeCooldownUpdate() {
         Enemy enemy = new Enemy(
                 new Position(300.0, 0.0),
@@ -323,6 +418,33 @@ class EnemyTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> enemy.updateRangedCooldown(-0.1)
+        );
+    }
+
+    @Test
+    void rangedEnemyShouldRejectNonFiniteCooldownUpdate() {
+        Enemy enemy = new Enemy(
+                new Position(300.0, 0.0),
+                80,
+                0.8,
+                EnemyType.RANGED
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> enemy.updateRangedCooldown(Double.NaN)
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> enemy.updateRangedCooldown(
+                        Double.POSITIVE_INFINITY
+                )
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> enemy.updateRangedCooldown(
+                        Double.NEGATIVE_INFINITY
+                )
         );
     }
 }

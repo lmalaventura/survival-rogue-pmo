@@ -9,6 +9,7 @@ public class Enemy {
     private static final double RANGED_PREFERRED_DISTANCE = 250.0;
     private static final double RANGED_DISTANCE_TOLERANCE = 50.0;
     private static final double RANGED_ATTACK_COOLDOWN = 1.0;
+    private static final double RANGED_COOLDOWN_TOLERANCE = 1.0e-9;
 
     private Position position;
     private final Health health;
@@ -121,7 +122,28 @@ public class Enemy {
 
     public boolean canRequestRangedAttack() {
         return type == EnemyType.RANGED
-                && rangedAttackCooldown <= 0.0;
+                && rangedAttackCooldown <= RANGED_COOLDOWN_TOLERANCE;
+    }
+
+    public boolean canRequestRangedAttack(Position targetPosition) {
+        Objects.requireNonNull(
+                targetPosition,
+                "Target position must not be null"
+        );
+
+        if (!canRequestRangedAttack()) {
+            return false;
+        }
+
+        double distance = Math.hypot(
+                targetPosition.x() - position.x(),
+                targetPosition.y() - position.y()
+        );
+
+        return distance >= RANGED_PREFERRED_DISTANCE
+                - RANGED_DISTANCE_TOLERANCE
+                && distance <= RANGED_PREFERRED_DISTANCE
+                + RANGED_DISTANCE_TOLERANCE;
     }
 
     public void requestRangedAttack() {

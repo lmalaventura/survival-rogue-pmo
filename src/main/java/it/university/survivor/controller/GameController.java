@@ -8,6 +8,7 @@ import it.university.survivor.model.ModifierType;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
 import it.university.survivor.model.Projectile;
+import it.university.survivor.model.ProjectileOwner;
 import it.university.survivor.model.RunStatistics;
 import it.university.survivor.model.StatModifier;
 import it.university.survivor.model.UpgradeCatalog;
@@ -41,6 +42,8 @@ public final class GameController {
     private static final double PLAYER_MOVEMENT_SUBSTEP_DISTANCE = 1.0;
     private static final double CONTACT_DISTANCE_TOLERANCE = 1.0e-9;
     private static final int ENEMY_CONTACT_DAMAGE = 10;
+    private static final int RANGED_PROJECTILE_DAMAGE = 8;
+    private static final double RANGED_PROJECTILE_SPEED = 220.0;
     private static final double PLAYER_HIT_INVULNERABILITY_SECONDS = 0.5;
     private static final double SPAWN_MARGIN = 24.0;
     private static final double MINIBOSS_CHARGE_INTERVAL_SECONDS = 3.0;
@@ -461,6 +464,7 @@ public final class GameController {
         updatePlayerHitInvulnerability(effectiveDelta);
         updatePlayerMovement(effectiveDelta);
         updateEnemyMovement(effectiveDelta);
+        updateRangedAttacks(effectiveDelta);
         updateWeapon(effectiveDelta);
         updateProjectileMovementAndCollisions(effectiveDelta);
         if (completeFinalWaveIfNeeded()) {
@@ -837,15 +841,21 @@ public final class GameController {
             double distanceToPlayer = Math.hypot(deltaToPlayerX, deltaToPlayerY);
             double contactDistance = playerEnemyContactDistance(enemy);
             double maximumMovement = distanceToPlayer - contactDistance;
-            if (isWithinContactDistance(distanceToPlayer, enemy)) {
+
+            Position direction = enemy.calculateDesiredDirection(playerPosition);
+            double directionTowardPlayer = direction.x() * deltaToPlayerX
+                    + direction.y() * deltaToPlayerY;
+            if (directionTowardPlayer > 0.0
+                    && isWithinContactDistance(distanceToPlayer, enemy)) {
                 continue;
             }
 
-            Position direction = enemy.calculateDesiredDirection(playerPosition);
             double desiredMovement = enemy.getMovementSpeed()
                     * enemyMovementSpeedMultiplier(enemy)
                     * effectiveDelta;
-            double actualMovement = Math.min(desiredMovement, maximumMovement);
+            double actualMovement = directionTowardPlayer > 0.0
+                    ? Math.min(desiredMovement, Math.max(0.0, maximumMovement))
+                    : desiredMovement;
             double movementX = direction.x() * actualMovement;
             double movementY = direction.y() * actualMovement;
             Position candidatePosition = createMovementCandidate(
@@ -857,6 +867,36 @@ public final class GameController {
             if (preservesEnemySeparation(enemy, enemyPosition, candidatePosition)) {
                 world.moveEnemyBy(enemy, movementX, movementY);
             }
+        }
+    }
+
+    private void updateRangedAttacks(double effectiveDelta) {
+        Position playerPosition = world.getPlayer().getPosition();
+
+        for (Enemy enemy : world.getEnemies()) {
+            if (enemy.isDead() || enemy.getType() != EnemyType.RANGED) {
+                continue;
+            }
+
+            enemy.updateRangedCooldown(effectiveDelta);
+            if (!enemy.canRequestRangedAttack(playerPosition)) {
+                continue;
+            }
+
+            Position enemyPosition = enemy.getPosition();
+            double deltaX = playerPosition.x() - enemyPosition.x();
+            double deltaY = playerPosition.y() - enemyPosition.y();
+            double distance = Math.hypot(deltaX, deltaY);
+            Projectile projectile = new Projectile(
+                    enemyPosition,
+                    deltaX / distance,
+                    deltaY / distance,
+                    RANGED_PROJECTILE_DAMAGE,
+                    RANGED_PROJECTILE_SPEED,
+                    ProjectileOwner.ENEMY
+            );
+            world.addProjectile(projectile);
+            enemy.requestRangedAttack();
         }
     }
 
@@ -935,7 +975,16 @@ public final class GameController {
             return;
         }
 
-        int damage = ENEMY_CONTACT_DAMAGE * enemiesInContact;
+        damagePlayerIfVulnerable(ENEMY_CONTACT_DAMAGE * enemiesInContact);
+    }
+
+    private void damagePlayerIfVulnerable(int damage) {
+        Player player = world.getPlayer();
+        if (player.getHealth().isDead()
+                || playerHitInvulnerabilityRemaining > 0.0) {
+            return;
+        }
+
         player.getHealth().takeDamage(damage);
         playerHitInvulnerabilityRemaining = PLAYER_HIT_INVULNERABILITY_SECONDS;
     }
@@ -1081,19 +1130,42 @@ public final class GameController {
                 continue;
             }
 
-            Enemy hitEnemy = findFirstCollidingEnemy(projectile);
-            if (hitEnemy != null) {
-                boolean wasAlive = !hitEnemy.isDead();
-                hitEnemy.takeDamage(projectile.getDamage());
-                if (wasAlive && hitEnemy.isDead()) {
-                    int experienceReward = hitEnemy.getType().experienceReward();
-                    experienceProgression.addExperience(experienceReward);
-                    runStatistics.recordEnemyDefeated();
-                    runStatistics.recordExperienceGained(experienceReward);
-                }
+            if (projectile.getOwner() == ProjectileOwner.PLAYER) {
+                applyPlayerProjectileCollision(projectile);
+            } else if (isCollidingWithPlayer(projectile)) {
+                damagePlayerIfVulnerable(projectile.getDamage());
                 world.removeProjectile(projectile);
             }
         }
+    }
+
+    private void applyPlayerProjectileCollision(Projectile projectile) {
+        Enemy hitEnemy = findFirstCollidingEnemy(projectile);
+        if (hitEnemy == null) {
+            return;
+        }
+
+        boolean wasAlive = !hitEnemy.isDead();
+        hitEnemy.takeDamage(projectile.getDamage());
+        if (wasAlive && hitEnemy.isDead()) {
+            int experienceReward = hitEnemy.getType().experienceReward();
+            experienceProgression.addExperience(experienceReward);
+            runStatistics.recordEnemyDefeated();
+            runStatistics.recordExperienceGained(experienceReward);
+        }
+        world.removeProjectile(projectile);
+    }
+
+    private boolean isCollidingWithPlayer(Projectile projectile) {
+        Position projectilePosition = projectile.getPosition();
+        Position playerPosition = world.getPlayer().getPosition();
+        double distance = Math.hypot(
+                playerPosition.x() - projectilePosition.x(),
+                playerPosition.y() - projectilePosition.y()
+        );
+        return distance <= PLAYER_COLLISION_RADIUS
+                + PROJECTILE_COLLISION_RADIUS
+                + CONTACT_DISTANCE_TOLERANCE;
     }
 
     private Enemy findFirstCollidingEnemy(Projectile projectile) {

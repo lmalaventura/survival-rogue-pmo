@@ -27,7 +27,37 @@ class ProjectileTest {
                 () -> assertEquals(1.0, projectile.getDirectionX(), TOLERANCE),
                 () -> assertEquals(0.0, projectile.getDirectionY(), TOLERANCE),
                 () -> assertEquals(25, projectile.getDamage()),
-                () -> assertEquals(300.0, projectile.getMovementSpeed())
+                () -> assertEquals(300.0, projectile.getMovementSpeed()),
+                () -> assertEquals(ProjectileOwner.PLAYER, projectile.getOwner())
+        );
+    }
+
+    @Test
+    void acceptsAnExplicitEnemyOwner() {
+        Projectile projectile = new Projectile(
+                new Position(10.0, 20.0),
+                1.0,
+                0.0,
+                8,
+                220.0,
+                ProjectileOwner.ENEMY
+        );
+
+        assertEquals(ProjectileOwner.ENEMY, projectile.getOwner());
+    }
+
+    @Test
+    void rejectsNullOwner() {
+        assertThrows(
+                NullPointerException.class,
+                () -> new Projectile(
+                        new Position(10.0, 20.0),
+                        1.0,
+                        0.0,
+                        8,
+                        220.0,
+                        null
+                )
         );
     }
 
