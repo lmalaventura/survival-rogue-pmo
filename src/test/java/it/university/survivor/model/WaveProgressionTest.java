@@ -19,21 +19,21 @@ class WaveProgressionTest {
     @Test
     void shouldDefineTheCompleteFifteenWaveDemoProgression() {
         List<List<EnemyWaveEntry>> expected = List.of(
-                entries(3, 0, 0, null),
-                entries(3, 1, 0, null),
-                entries(3, 2, 0, null),
-                entries(3, 2, 1, null),
-                entries(3, 0, 0, EnemyType.MINIBOSS),
-                entries(3, 2, 1, null),
-                entries(3, 3, 1, null),
-                entries(3, 3, 2, null),
-                entries(4, 3, 2, null),
-                entries(3, 2, 2, EnemyType.MINIBOSS),
-                entries(4, 3, 2, null),
-                entries(4, 3, 3, null),
-                entries(3, 4, 3, null),
-                entries(4, 3, 3, null),
-                entries(3, 3, 3, EnemyType.BOSS)
+                entries(3, 0, 0, 0, null),
+                entries(3, 1, 0, 0, null),
+                entries(3, 2, 0, 0, null),
+                entries(3, 2, 1, 0, null),
+                entries(3, 0, 0, 0, EnemyType.MINIBOSS),
+                entries(2, 2, 1, 1, null),
+                entries(2, 2, 1, 2, null),
+                entries(2, 2, 2, 2, null),
+                entries(3, 2, 2, 2, null),
+                entries(2, 2, 2, 1, EnemyType.MINIBOSS),
+                entries(2, 2, 2, 3, null),
+                entries(2, 2, 3, 3, null),
+                entries(2, 2, 3, 3, null),
+                entries(2, 2, 3, 3, null),
+                entries(2, 2, 3, 2, EnemyType.BOSS)
         );
 
         assertEquals(15, WaveProgression.MAX_WAVES);
@@ -105,14 +105,20 @@ class WaveProgressionTest {
     }
 
     @Test
-    void rangedShouldNotAppearInAnyDemoWave() {
+    void rangedShouldAppearFromWaveSixOnward() {
         for (int waveNumber = 1;
                 waveNumber <= WaveProgression.MAX_WAVES;
                 waveNumber++) {
-            assertFalse(contains(
+            boolean containsRanged = contains(
                     WaveProgression.getConfig(waveNumber),
                     EnemyType.RANGED
-            ));
+            );
+
+            if (waveNumber < 6) {
+                assertFalse(containsRanged);
+            } else {
+                assertTrue(containsRanged);
+            }
         }
     }
 
@@ -141,6 +147,7 @@ class WaveProgressionTest {
             int basicCount,
             int fastCount,
             int tankCount,
+            int rangedCount,
             EnemyType specialType
     ) {
         java.util.ArrayList<EnemyWaveEntry> entries =
@@ -149,6 +156,7 @@ class WaveProgressionTest {
         add(entries, EnemyType.BASIC, basicCount);
         add(entries, EnemyType.FAST, fastCount);
         add(entries, EnemyType.TANK, tankCount);
+        add(entries, EnemyType.RANGED, rangedCount);
 
         if (specialType != null) {
             add(entries, specialType, 1);

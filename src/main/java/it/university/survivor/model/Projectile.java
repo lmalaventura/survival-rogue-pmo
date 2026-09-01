@@ -9,6 +9,7 @@ public final class Projectile {
     private final double directionY;
     private final int damage;
     private final double movementSpeed;
+    private final ProjectileOwner owner;
 
     public Projectile(
             Position position,
@@ -17,9 +18,31 @@ public final class Projectile {
             int damage,
             double movementSpeed
     ) {
+        this(
+                position,
+                directionX,
+                directionY,
+                damage,
+                movementSpeed,
+                ProjectileOwner.PLAYER
+        );
+    }
+
+    public Projectile(
+            Position position,
+            double directionX,
+            double directionY,
+            int damage,
+            double movementSpeed,
+            ProjectileOwner owner
+    ) {
         Position validatedPosition = Objects.requireNonNull(
                 position,
                 "Position must not be null"
+        );
+        ProjectileOwner validatedOwner = Objects.requireNonNull(
+                owner,
+                "Owner must not be null"
         );
         if (!Double.isFinite(validatedPosition.x())
                 || !Double.isFinite(validatedPosition.y())) {
@@ -51,6 +74,7 @@ public final class Projectile {
         this.directionY = scaledDirectionY / directionMagnitude;
         this.damage = damage;
         this.movementSpeed = movementSpeed;
+        this.owner = validatedOwner;
     }
 
     public Position getPosition() {
@@ -71,6 +95,10 @@ public final class Projectile {
 
     public double getMovementSpeed() {
         return movementSpeed;
+    }
+
+    public ProjectileOwner getOwner() {
+        return owner;
     }
 
     void moveTo(Position newPosition) {

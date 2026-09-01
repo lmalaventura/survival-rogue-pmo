@@ -8,6 +8,7 @@ import it.university.survivor.model.Health;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
 import it.university.survivor.model.Projectile;
+import it.university.survivor.model.ProjectileOwner;
 import it.university.survivor.model.enemy.EnemyType;
 import it.university.survivor.model.enemy.Wave;
 import it.university.survivor.model.enemy.WaveProgression;
@@ -127,9 +128,13 @@ public final class GameView {
         }
 
         double projectileMarkerDiameter = PROJECTILE_MARKER_RADIUS * 2.0;
-        graphics.setFill(Color.GOLD);
         for (Projectile projectile : world.getProjectiles()) {
             Position projectilePosition = projectile.getPosition();
+            graphics.setFill(
+                    projectile.getOwner() == ProjectileOwner.PLAYER
+                            ? Color.GOLD
+                            : Color.HOTPINK
+            );
             graphics.fillOval(
                     projectilePosition.x() - PROJECTILE_MARKER_RADIUS,
                     projectilePosition.y() - PROJECTILE_MARKER_RADIUS,

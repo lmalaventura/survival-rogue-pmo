@@ -8,6 +8,7 @@ import it.university.survivor.model.ModifierType;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
 import it.university.survivor.model.Projectile;
+import it.university.survivor.model.ProjectileOwner;
 import it.university.survivor.model.Rarity;
 import it.university.survivor.model.RunStatistics;
 import it.university.survivor.model.StatModifier;
@@ -434,6 +435,64 @@ class GameControllerTest {
         controller.update(0.1);
 
         assertPosition(410.0, 500.0, enemy.getPosition());
+    }
+
+    @Test
+    void rangedEnemyApproachesPlayerWhenTooFarAway() {
+        Enemy rangedEnemy = new Enemy(
+                new Position(100.0, 500.0),
+                80,
+                MOVEMENT_SPEED,
+                EnemyType.RANGED
+        );
+        GameWorld world = createWorld(500.0, 500.0, rangedEnemy);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertPosition(110.0, 500.0, rangedEnemy.getPosition()),
+                () -> assertTrue(world.getProjectiles().isEmpty())
+        );
+    }
+
+    @Test
+    void rangedEnemyMovesAwayEvenWhenInitiallyInsideContactDistance() {
+        Enemy rangedEnemy = new Enemy(
+                new Position(490.0, 500.0),
+                80,
+                MOVEMENT_SPEED,
+                EnemyType.RANGED
+        );
+        GameWorld world = createWorld(500.0, 500.0, rangedEnemy);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertPosition(480.0, 500.0, rangedEnemy.getPosition()),
+                () -> assertEquals(
+                        100,
+                        world.getPlayer().getHealth().getCurrentHealth()
+                ),
+                () -> assertTrue(world.getProjectiles().isEmpty())
+        );
+    }
+
+    @Test
+    void rangedEnemyMaintainsItsPreferredDistance() {
+        Enemy rangedEnemy = new Enemy(
+                new Position(250.0, 500.0),
+                80,
+                MOVEMENT_SPEED,
+                EnemyType.RANGED
+        );
+        GameWorld world = createWorld(500.0, 500.0, rangedEnemy);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        assertPosition(250.0, 500.0, rangedEnemy.getPosition());
     }
 
     @Test
@@ -1287,6 +1346,200 @@ class GameControllerTest {
                 () -> assertEquals(new Position(1_000.0, 500.0),
                         projectile.getPosition()),
                 () -> assertEquals(List.of(projectile), world.getProjectiles())
+        );
+    }
+
+    @Test
+    void playerProjectileNeverDamagesPlayer() {
+        GameWorld world = createWorld(500.0, 500.0);
+        Projectile projectile = projectileAt(
+                490.0,
+                500.0,
+                1.0,
+                0.0,
+                8,
+                10.0,
+                ProjectileOwner.PLAYER
+        );
+        world.addProjectile(projectile);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(
+                        100,
+                        world.getPlayer().getHealth().getCurrentHealth()
+                ),
+                () -> assertEquals(List.of(projectile), world.getProjectiles())
+        );
+    }
+
+    @Test
+    void enemyProjectileNeverDamagesEnemy() {
+        Enemy enemy = new Enemy(
+                new Position(500.0, 500.0),
+                100,
+                MOVEMENT_SPEED
+        );
+        GameWorld world = createWorld(100.0, 100.0, enemy);
+        Projectile projectile = projectileAt(
+                490.0,
+                500.0,
+                1.0,
+                0.0,
+                8,
+                10.0,
+                ProjectileOwner.ENEMY
+        );
+        world.addProjectile(projectile);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(100, enemy.getHealth().getCurrentHealth()),
+                () -> assertEquals(List.of(projectile), world.getProjectiles())
+        );
+    }
+
+    @Test
+    void enemyProjectileDamagesPlayerAndIsRemoved() {
+        GameWorld world = createWorld(500.0, 500.0);
+        Projectile projectile = projectileAt(
+                490.0,
+                500.0,
+                1.0,
+                0.0,
+                8,
+                10.0,
+                ProjectileOwner.ENEMY
+        );
+        world.addProjectile(projectile);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(
+                        92,
+                        world.getPlayer().getHealth().getCurrentHealth()
+                ),
+                () -> assertTrue(world.getProjectiles().isEmpty())
+        );
+    }
+
+    @Test
+    void enemyProjectileUsesExistingPlayerInvulnerabilityWindow() {
+        Enemy contactingEnemy = new Enemy(
+                new Position(486.0, 500.0),
+                100,
+                MOVEMENT_SPEED
+        );
+        GameWorld world = createWorld(500.0, 500.0, contactingEnemy);
+        GameController controller = new GameController(world);
+        controller.update(0.1);
+        contactingEnemy.takeDamage(100);
+
+        Projectile projectile = projectileAt(
+                490.0,
+                500.0,
+                1.0,
+                0.0,
+                8,
+                10.0,
+                ProjectileOwner.ENEMY
+        );
+        world.addProjectile(projectile);
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(
+                        90,
+                        world.getPlayer().getHealth().getCurrentHealth()
+                ),
+                () -> assertTrue(world.getProjectiles().isEmpty())
+        );
+    }
+
+    @Test
+    void rangedEnemyCreatesConfiguredHostileProjectileInAttackRange() {
+        Enemy rangedEnemy = new Enemy(
+                new Position(250.0, 500.0),
+                80,
+                MOVEMENT_SPEED,
+                EnemyType.RANGED
+        );
+        GameWorld world = createWorld(500.0, 500.0, rangedEnemy);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+
+        Projectile projectile = world.getProjectiles().get(0);
+        assertAll(
+                () -> assertEquals(1, world.getProjectiles().size()),
+                () -> assertEquals(ProjectileOwner.ENEMY, projectile.getOwner()),
+                () -> assertEquals(8, projectile.getDamage()),
+                () -> assertEquals(220.0, projectile.getMovementSpeed(), TOLERANCE),
+                () -> assertEquals(1.0, projectile.getDirectionX(), TOLERANCE),
+                () -> assertEquals(0.0, projectile.getDirectionY(), TOLERANCE),
+                () -> assertFalse(rangedEnemy.canRequestRangedAttack())
+        );
+    }
+
+    @Test
+    void rangedCooldownPreventsConsecutiveProjectiles() {
+        Enemy rangedEnemy = new Enemy(
+                new Position(250.0, 500.0),
+                80,
+                MOVEMENT_SPEED,
+                EnemyType.RANGED
+        );
+        GameWorld world = createWorld(500.0, 500.0, rangedEnemy);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+        Projectile firstProjectile = world.getProjectiles().get(0);
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(1, world.getProjectiles().size()),
+                () -> assertSame(firstProjectile, world.getProjectiles().get(0))
+        );
+    }
+
+    @Test
+    void rangedEnemyCanFireAgainAfterOneSecond() {
+        Enemy rangedEnemy = new Enemy(
+                new Position(650.0, 500.0),
+                80,
+                MOVEMENT_SPEED,
+                EnemyType.RANGED
+        );
+        GameWorld world = createWorld(900.0, 500.0, rangedEnemy);
+        GameController controller = new GameController(world);
+
+        controller.update(0.1);
+        Projectile firstProjectile = world.getProjectiles().get(0);
+        for (int update = 0; update < 9; update++) {
+            controller.update(0.1);
+        }
+
+        assertAll(
+                () -> assertEquals(1, world.getProjectiles().size()),
+                () -> assertSame(firstProjectile, world.getProjectiles().get(0))
+        );
+
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(1, world.getProjectiles().size()),
+                () -> assertNotSame(firstProjectile, world.getProjectiles().get(0)),
+                () -> assertEquals(
+                        ProjectileOwner.ENEMY,
+                        world.getProjectiles().get(0).getOwner()
+                )
         );
     }
 
@@ -2239,7 +2492,7 @@ class GameControllerTest {
     void waveTransitionClearsProjectilesFromPreviousWave() {
         Enemy enemy = deadEnemyAt(900.0, 900.0);
         GameWorld world = createWorld(500.0, 500.0, enemy);
-        Projectile projectile = projectileAt(
+        Projectile playerProjectile = projectileAt(
                 100.0,
                 100.0,
                 1.0,
@@ -2247,7 +2500,17 @@ class GameControllerTest {
                 10,
                 1.0
         );
-        world.addProjectile(projectile);
+        Projectile enemyProjectile = projectileAt(
+                900.0,
+                100.0,
+                -1.0,
+                0.0,
+                8,
+                1.0,
+                ProjectileOwner.ENEMY
+        );
+        world.addProjectile(playerProjectile);
+        world.addProjectile(enemyProjectile);
         GameController controller = new GameController(
                 world,
                 new Wave(1, List.of(enemy))
@@ -2378,6 +2641,34 @@ class GameControllerTest {
                 ),
                 () -> assertEquals(1,
                         fixture.statistics().getWavesCompleted())
+        );
+    }
+
+    @Test
+    void rangedEnemyCannotAttackDuringUpgradeSelection() {
+        UpgradeFixture fixture = enterUpgradeSelection(
+                StatType.MAX_HEALTH,
+                ModifierType.FLAT,
+                20.0,
+                1
+        );
+        Enemy rangedEnemy = new Enemy(
+                new Position(250.0, 500.0),
+                80,
+                MOVEMENT_SPEED,
+                EnemyType.RANGED
+        );
+        fixture.world().replaceEnemies(List.of(rangedEnemy));
+
+        fixture.controller().update(0.1);
+
+        assertAll(
+                () -> assertEquals(
+                        RunState.UPGRADE_SELECTION,
+                        fixture.controller().getRunState()
+                ),
+                () -> assertTrue(fixture.world().getProjectiles().isEmpty()),
+                () -> assertTrue(rangedEnemy.canRequestRangedAttack())
         );
     }
 
@@ -2983,6 +3274,67 @@ class GameControllerTest {
     }
 
     @Test
+    void rangedEnemyCannotAttackAfterVictory() {
+        Enemy completedEnemy = deadEnemyAt(900.0, 900.0);
+        GameWorld world = createWorld(500.0, 500.0, completedEnemy);
+        GameController controller = new GameController(
+                world,
+                new Wave(15, List.of(completedEnemy))
+        );
+        controller.update(0.1);
+
+        Enemy rangedEnemy = new Enemy(
+                new Position(250.0, 500.0),
+                80,
+                MOVEMENT_SPEED,
+                EnemyType.RANGED
+        );
+        world.replaceEnemies(List.of(rangedEnemy));
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(RunState.VICTORY, controller.getRunState()),
+                () -> assertTrue(world.getProjectiles().isEmpty()),
+                () -> assertTrue(rangedEnemy.canRequestRangedAttack())
+        );
+    }
+
+    @Test
+    void rangedEnemyCannotAttackAfterDefeat() {
+        Player player = new Player(
+                new Position(500.0, 500.0),
+                100,
+                MOVEMENT_SPEED
+        );
+        player.getHealth().takeDamage(100);
+        Enemy rangedEnemy = new Enemy(
+                new Position(250.0, 500.0),
+                80,
+                MOVEMENT_SPEED,
+                EnemyType.RANGED
+        );
+        GameWorld world = new GameWorld(
+                WORLD_SIZE,
+                WORLD_SIZE,
+                player,
+                List.of(rangedEnemy)
+        );
+        GameController controller = new GameController(
+                world,
+                new Wave(1, List.of(rangedEnemy))
+        );
+
+        controller.update(0.1);
+        controller.update(0.1);
+
+        assertAll(
+                () -> assertEquals(RunState.DEFEAT, controller.getRunState()),
+                () -> assertTrue(world.getProjectiles().isEmpty()),
+                () -> assertTrue(rangedEnemy.canRequestRangedAttack())
+        );
+    }
+
+    @Test
     void generatedSpawnPositionsAreInternalAndDeterministic() {
         List<Position> firstPositions = transitionToWaveTwoAndGetPositions();
         List<Position> secondPositions = transitionToWaveTwoAndGetPositions();
@@ -3299,15 +3651,17 @@ class GameControllerTest {
             int expectedLevel,
             int expectedCurrentExperience
     ) {
+        double enemyX = enemyType == EnemyType.RANGED ? 250.0 : 486.0;
+        double projectileX = enemyType == EnemyType.RANGED ? 240.0 : 476.0;
         Enemy enemy = new Enemy(
-                new Position(486.0, 500.0),
+                new Position(enemyX, 500.0),
                 20,
                 MOVEMENT_SPEED,
                 enemyType
         );
         GameWorld world = createWorld(500.0, 500.0, enemy);
         world.addProjectile(projectileAt(
-                476.0,
+                projectileX,
                 500.0,
                 1.0,
                 0.0,
@@ -3395,6 +3749,25 @@ class GameControllerTest {
                 directionY,
                 damage,
                 movementSpeed
+        );
+    }
+
+    private static Projectile projectileAt(
+            double x,
+            double y,
+            double directionX,
+            double directionY,
+            int damage,
+            double movementSpeed,
+            ProjectileOwner owner
+    ) {
+        return new Projectile(
+                new Position(x, y),
+                directionX,
+                directionY,
+                damage,
+                movementSpeed,
+                owner
         );
     }
 
