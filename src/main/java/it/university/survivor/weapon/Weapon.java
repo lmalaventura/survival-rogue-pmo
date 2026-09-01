@@ -10,14 +10,18 @@ import it.university.survivor.model.Position;
 
 public class Weapon {
 
+    public static final int DEFAULT_MAX_LEVEL = 5;
+
+
     private WeaponStats stats;
     private AttackStrategy attackStrategy;
     private final AttackStrategy evolvedAttackStrategy;
+    private final WeaponUpgrade evolutionUpgrade;
     private final int maxLevel;
 
     private int level;
     private double currentCooldown;
-    public static final int DEFAULT_MAX_LEVEL = 5;
+    
 public Weapon(
         WeaponStats stats,
         AttackStrategy attackStrategy) {
@@ -38,10 +42,22 @@ public Weapon(
     this.maxLevel = DEFAULT_MAX_LEVEL;
 }
 public Weapon(
+            WeaponStats stats,
+            AttackStrategy attackStrategy,
+            AttackStrategy evolvedAttackStrategy,
+            int maxLevel) {
+        this.stats=stats;
+        this.attackStrategy = attackStrategy;
+        this.evolvedAttackStrategy = evolvedAttackStrategy;
+        this.maxLevel = maxLevel;
+    }
+
+public Weapon(
         WeaponStats stats,
         AttackStrategy attackStrategy,
         AttackStrategy evolvedAttackStrategy,
-        int maxLevel) {
+        int maxLevel,
+        WeaponUpgrade evolutionUpgrade) {
 
     this.stats = Objects.requireNonNull(stats);
     this.attackStrategy = Objects.requireNonNull(attackStrategy);
@@ -55,6 +71,7 @@ public Weapon(
     }
 
     this.maxLevel = maxLevel;
+    this.evolutionUpgrade = evolutionUpgrade;
     this.level = 1;
     this.currentCooldown = 0.0;
 }
@@ -151,6 +168,10 @@ public List<ProjectileSpawnRequest> attackAll(
 
     if (level == maxLevel) {
         attackStrategy = evolvedAttackStrategy;
+        if(evolutionUpgrade != null){
+            upgrade(evolutionUpgrade);
+        }
     }
 }
+
 }

@@ -34,7 +34,8 @@ public final class WeaponFactory {
 
             new SpreadAttackStrategy(true),
 
-            5
+            5,
+            new PatternEvolutionUpgrade(3, 20.0)
     );
 }
 public static Weapon createShotgun() {
@@ -52,24 +53,11 @@ public static Weapon createShotgun() {
 
             new SpreadAttackStrategy(true),
 
-            5
+            5,
+            new PatternEvolutionUpgrade(7, 75.0)
     ) {
 
-        @Override
-        public void levelUp() {
-
-            super.levelUp();
-
-            if (getLevel() == 5) {
-
-                upgrade(
-                        new PatternEvolutionUpgrade(
-                                7,
-                                75.0
-                        )
-                );
-            }
-        }
+       
     };
 }
 public static Weapon createSniper() {
@@ -105,7 +93,8 @@ public static Weapon createPulse() {
 
             new RadialAttackStrategy(),
 
-            5
+            5,
+            new PatternEvolutionUpgrade(12, 360.0)
     );
     }
 }
