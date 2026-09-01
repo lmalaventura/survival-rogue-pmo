@@ -1,5 +1,7 @@
 package it.university.survivor.weapon;
-public class PercentDamageUpgrade implements WeaponUpgrade{
+
+public class PercentDamageUpgrade implements WeaponUpgrade {
+
     private final double percentage;
 
     public PercentDamageUpgrade(double percentage) {
@@ -8,7 +10,6 @@ public class PercentDamageUpgrade implements WeaponUpgrade{
                     "La percentuale deve essere finita e positiva."
             );
         }
-
         this.percentage = percentage;
     }
 
@@ -21,7 +22,9 @@ public class PercentDamageUpgrade implements WeaponUpgrade{
         return new WeaponStats(
                 stats.getCooldownSeconds(),
                 newDamage,
-                stats.getProjectileSpeed()
+                stats.getProjectileSpeed(),
+                stats.getProjectileCount(),
+                stats.getSpreadDegrees()
         );
     }
 }

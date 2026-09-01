@@ -1,13 +1,13 @@
 package it.university.survivor.weapon;
 
-public class FlatDamageUpgrade implements WeaponUpgrade{
-     private final int bonusDamage;
+public class FlatDamageUpgrade implements WeaponUpgrade {
+
+    private final int bonusDamage;
 
     public FlatDamageUpgrade(int bonusDamage) {
         if (bonusDamage <= 0) {
             throw new IllegalArgumentException("Il bonus deve essere positivo.");
         }
-
         this.bonusDamage = bonusDamage;
     }
 
@@ -16,7 +16,9 @@ public class FlatDamageUpgrade implements WeaponUpgrade{
         return new WeaponStats(
                 stats.getCooldownSeconds(),
                 stats.getDamage() + bonusDamage,
-                stats.getProjectileSpeed()
+                stats.getProjectileSpeed(),
+                stats.getProjectileCount(),
+                stats.getSpreadDegrees()
         );
     }
 }

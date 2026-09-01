@@ -1,6 +1,7 @@
 package it.university.survivor.weapon;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -9,17 +10,85 @@ import it.university.survivor.model.Position;
 
 public class Weapon {
 
-    private WeaponStats stats;
-    private final AttackStrategy attackStrategy;
+    public static final int DEFAULT_MAX_LEVEL = 5;
 
+    private WeaponStats stats;
+    private AttackStrategy attackStrategy;
+    private final AttackStrategy evolvedAttackStrategy;
+    private final WeaponUpgrade evolutionUpgrade;
+    private final int maxLevel;
+
+    private int level;
     private double currentCooldown;
 
     public Weapon(
             WeaponStats stats,
-            AttackStrategy attackStrategy) {
+            AttackStrategy attackStrategy
+    ) {
+        this(
+                stats,
+                attackStrategy,
+                attackStrategy,
+                DEFAULT_MAX_LEVEL,
+                null
+        );
+    }
 
-        this.stats = Objects.requireNonNull(stats);
-        this.attackStrategy = Objects.requireNonNull(attackStrategy);
+    public Weapon(
+            WeaponStats stats,
+            AttackStrategy attackStrategy,
+            AttackStrategy evolvedAttackStrategy
+    ) {
+        this(
+                stats,
+                attackStrategy,
+                evolvedAttackStrategy,
+                DEFAULT_MAX_LEVEL,
+                null
+        );
+    }
+
+    public Weapon(
+            WeaponStats stats,
+            AttackStrategy attackStrategy,
+            AttackStrategy evolvedAttackStrategy,
+            int maxLevel
+    ) {
+        this(
+                stats,
+                attackStrategy,
+                evolvedAttackStrategy,
+                maxLevel,
+                null
+        );
+    }
+
+    public Weapon(
+            WeaponStats stats,
+            AttackStrategy attackStrategy,
+            AttackStrategy evolvedAttackStrategy,
+            int maxLevel,
+            WeaponUpgrade evolutionUpgrade
+    ) {
+        this.stats = Objects.requireNonNull(stats, "Stats must not be null");
+        this.attackStrategy = Objects.requireNonNull(
+                attackStrategy,
+                "Attack strategy must not be null"
+        );
+        this.evolvedAttackStrategy = Objects.requireNonNull(
+                evolvedAttackStrategy,
+                "Evolved attack strategy must not be null"
+        );
+
+        if (maxLevel < 2) {
+            throw new IllegalArgumentException(
+                    "Maximum level must be at least two"
+            );
+        }
+
+        this.maxLevel = maxLevel;
+        this.evolutionUpgrade = evolutionUpgrade;
+        this.level = 1;
         this.currentCooldown = 0.0;
     }
 
@@ -43,27 +112,40 @@ public class Weapon {
 
     public Optional<ProjectileSpawnRequest> attack(
             Position playerPosition,
-            Collection<? extends Enemy> targets) {
+            Collection<? extends Enemy> targets
+    ) {
+        List<ProjectileSpawnRequest> requests = attackAll(
+                playerPosition,
+                targets
+        );
 
-        Objects.requireNonNull(playerPosition);
-        Objects.requireNonNull(targets);
+        return requests.isEmpty()
+                ? Optional.empty()
+                : Optional.of(requests.get(0));
+    }
+
+    public List<ProjectileSpawnRequest> attackAll(
+            Position playerPosition,
+            Collection<? extends Enemy> targets
+    ) {
+        Objects.requireNonNull(playerPosition, "Player position must not be null");
+        Objects.requireNonNull(targets, "Targets must not be null");
 
         if (!canAttack()) {
-            return Optional.empty();
+            return List.of();
         }
 
-        Optional<ProjectileSpawnRequest> request =
-                attackStrategy.attack(
-                        playerPosition,
-                        targets,
-                        stats
-                );
+        List<ProjectileSpawnRequest> requests = attackStrategy.attackMultiple(
+                playerPosition,
+                targets,
+                stats
+        );
 
-        if (request.isPresent()) {
+        if (!requests.isEmpty()) {
             currentCooldown = stats.getCooldownSeconds();
         }
 
-        return request;
+        return List.copyOf(requests);
     }
 
     public double getCooldown() {
@@ -75,7 +157,37 @@ public class Weapon {
     }
 
     public void upgrade(WeaponUpgrade upgrade) {
-        Objects.requireNonNull(upgrade);
-        stats = upgrade.apply(stats);
+        Objects.requireNonNull(upgrade, "Upgrade must not be null");
+        stats = Objects.requireNonNull(
+                upgrade.apply(stats),
+                "Upgrade result must not be null"
+        );
+    }
+
+    public int getLevel() {
+        return level;
+    }
+
+    public int getMaxLevel() {
+        return maxLevel;
+    }
+
+    public boolean isEvolved() {
+        return level >= maxLevel;
+    }
+
+    public void levelUp() {
+        if (level >= maxLevel) {
+            return;
+        }
+
+        level++;
+
+        if (level == maxLevel) {
+            attackStrategy = evolvedAttackStrategy;
+            if (evolutionUpgrade != null) {
+                upgrade(evolutionUpgrade);
+            }
+        }
     }
 }
