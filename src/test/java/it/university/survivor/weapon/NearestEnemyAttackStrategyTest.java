@@ -31,7 +31,7 @@ class NearestEnemyAttackStrategyTest {
 
         Enemy nearEnemy =
                 new Enemy(
-                        new Position(3, 0),
+                        new Position(0, 3),
                         100,
                         1.0
                 );
@@ -48,8 +48,8 @@ class NearestEnemyAttackStrategyTest {
         ProjectileSpawnRequest request = result.get();
 
         assertEquals(playerPosition, request.origin());
-        assertEquals(1.0, request.directionX(), 1e-9);
-        assertEquals(0.0, request.directionY(), 1e-9);
+        assertEquals(0.0, request.directionX(), 1e-9);
+        assertEquals(1.0, request.directionY(), 1e-9);
         assertEquals(20, request.damage());
         assertEquals(5.0, request.speed());
     }

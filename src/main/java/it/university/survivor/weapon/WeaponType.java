@@ -1,5 +1,6 @@
 package it.university.survivor.weapon;
-public enum WeaponType{
+
+public enum WeaponType {
     AUTOMATIC,
     SHOTGUN,
     SNIPER,

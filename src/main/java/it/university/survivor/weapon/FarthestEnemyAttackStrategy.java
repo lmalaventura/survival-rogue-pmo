@@ -1,4 +1,4 @@
-package it.university.survivor.weapon
+package it.university.survivor.weapon;
 
 import java.util.Collection;
 import java.util.Objects;

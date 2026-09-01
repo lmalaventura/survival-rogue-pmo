@@ -12,7 +12,9 @@ class DamageUpgradeTest {
                 new WeaponStats(
                         1.0,
                         10,
-                        5.0
+                        5.0,
+                        3,
+                        30.0
                 );
 
         FlatDamageUpgrade upgrade =
@@ -24,6 +26,8 @@ class DamageUpgradeTest {
         assertEquals(1.0, upgraded.getCooldownSeconds());
         assertEquals(15, upgraded.getDamage());
         assertEquals(5.0, upgraded.getProjectileSpeed());
+        assertEquals(3, upgraded.getProjectileCount());
+        assertEquals(30.0, upgraded.getSpreadDegrees());
     }
 
     @Test

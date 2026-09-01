@@ -15,12 +15,12 @@ public interface AttackStrategy {
         WeaponStats stats
     );
     default List<ProjectileSpawnRequest> attackMultiple(
-        Position playerPosition,
-        Collection<? extends Enemy> targets,
-        WeaponStats stats){
-            return attack(playerPosition, targets, stats)
-                    .map(List::of)
-                    .orElseGet(List::of);
-        }
-    )
+            Position playerPosition,
+            Collection<? extends Enemy> targets,
+            WeaponStats stats
+    ) {
+        return attack(playerPosition, targets, stats)
+                .map(List::of)
+                .orElseGet(List::of);
+    }
 }

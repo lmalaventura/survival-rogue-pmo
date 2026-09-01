@@ -31,7 +31,9 @@ class CooldownUpgradeTest {
                 new WeaponStats(
                         1.0,
                         10,
-                        5.0
+                        5.0,
+                        5,
+                        60.0
                 );
 
         FlatCooldownUpgrade upgrade =
@@ -41,8 +43,9 @@ class CooldownUpgradeTest {
                 upgrade.apply(original);
 
         assertEquals(original.getDamage(), upgraded.getDamage());
-        assertEquals(original.getProjectileSpeed(),
-                upgraded.getProjectileSpeed());
+        assertEquals(original.getProjectileSpeed(), upgraded.getProjectileSpeed());
+        assertEquals(original.getProjectileCount(), upgraded.getProjectileCount());
+        assertEquals(original.getSpreadDegrees(), upgraded.getSpreadDegrees());
     }
 
     @Test
@@ -78,7 +81,7 @@ void shouldReduceCooldownByPercentage() {
             upgrade.apply(original);
 
     assertEquals(0.95, upgraded.getCooldownSeconds(), 1e-9);
-    
+
 }
 
     @Test
