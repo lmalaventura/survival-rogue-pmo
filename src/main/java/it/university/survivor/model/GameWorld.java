@@ -66,6 +66,17 @@ public final class GameWorld {
         this.enemies.addAll(validatedEnemies);
     }
 
+    public void addEnemy(Enemy enemy) {
+        Enemy validatedEnemy = Objects.requireNonNull(enemy, "Enemy must not be null");
+        if (!isWithinBounds(validatedEnemy.getPosition(), width, height)) {
+            throw new IllegalArgumentException(
+                    "Enemy position must be within world bounds"
+            );
+        }
+
+        enemies.add(validatedEnemy);
+    }
+
     public void addProjectile(Projectile projectile) {
         Projectile validatedProjectile = Objects.requireNonNull(
                 projectile,

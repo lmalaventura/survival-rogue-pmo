@@ -2,7 +2,6 @@ package it.university.survivor.view;
 
 
 import it.university.survivor.model.Item;
-import it.university.survivor.model.ModifierType;
 import it.university.survivor.model.UpgradeChoiceSession;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -74,15 +73,10 @@ public final class UpgradeView extends VBox {
                 final int index = i;
                 Item item = options.get(i);
 
-                String valueStr = item.baseModifier().modifierType() == ModifierType.PERCENTAGE
-                ? String.format("%+.0f%%", item.getEffectiveValue() * 100)
-                : String.format("%+.0f", item.getEffectiveValue());
-
-                String label = String.format("%s [%s] (%s %s)",
+                String label = String.format("%s [%s] (%s)",
                     item.name(),
                     item.rarity(),
-                    valueStr,
-                    item.baseModifier().statType());
+                    ItemEffectFormatter.format(item));
 
 
                 Button button = new Button(label);
@@ -98,7 +92,11 @@ public final class UpgradeView extends VBox {
                 optionsContainer.getChildren().add(button);
             }
 
-            rerollButton.setText("Reroll (" + session.getRemainingRerolls() + " rimasto)");
+            int remainingRerolls = session.getRemainingRerolls();
+            String rerollGrammar = remainingRerolls == 1 ? "rimasto" : "rimasti";
+            rerollButton.setText(
+                    "Reroll (" + remainingRerolls + " " + rerollGrammar + ")"
+            );
             rerollButton.setDisable(session.getRemainingRerolls() <= 0 || session.isSelectionMade());
         }
 

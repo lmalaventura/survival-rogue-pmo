@@ -6,6 +6,7 @@ import it.university.survivor.view.GameView;
 import javafx.animation.AnimationTimer;
 
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
 
 public final class GameLoop {
 
@@ -15,13 +16,14 @@ public final class GameLoop {
     private final GameController controller;
     private final GameView view;
     private final Runnable uiSynchronizer;
+    private final BooleanSupplier simulationPaused;
     private final AnimationTimer timer;
 
     private long previousTimestamp;
 
     public GameLoop(GameWorld world, GameController controller, GameView view) {
         this(world, controller, view, () -> {
-        });
+        }, () -> false);
     }
 
     public GameLoop(
@@ -30,12 +32,26 @@ public final class GameLoop {
             GameView view,
             Runnable uiSynchronizer
     ) {
+        this(world, controller, view, uiSynchronizer, () -> false);
+    }
+
+    public GameLoop(
+            GameWorld world,
+            GameController controller,
+            GameView view,
+            Runnable uiSynchronizer,
+            BooleanSupplier simulationPaused
+    ) {
         this.world = Objects.requireNonNull(world, "World must not be null");
         this.controller = Objects.requireNonNull(controller, "Controller must not be null");
         this.view = Objects.requireNonNull(view, "View must not be null");
         this.uiSynchronizer = Objects.requireNonNull(
                 uiSynchronizer,
                 "UI synchronizer must not be null"
+        );
+        this.simulationPaused = Objects.requireNonNull(
+                simulationPaused,
+                "Simulation pause supplier must not be null"
         );
         this.timer = new AnimationTimer() {
             @Override
@@ -69,8 +85,23 @@ public final class GameLoop {
         double deltaSeconds = (now - previousTimestamp) / NANOS_PER_SECOND;
         previousTimestamp = now;
 
-        controller.update(deltaSeconds);
+        advanceSimulation(
+                controller,
+                deltaSeconds,
+                simulationPaused.getAsBoolean()
+        );
         renderCurrentState();
+    }
+
+    static void advanceSimulation(
+            GameController controller,
+            double deltaSeconds,
+            boolean simulationPaused
+    ) {
+        Objects.requireNonNull(controller, "Controller must not be null");
+        if (!simulationPaused) {
+            controller.update(deltaSeconds);
+        }
     }
 
     private void renderCurrentState() {

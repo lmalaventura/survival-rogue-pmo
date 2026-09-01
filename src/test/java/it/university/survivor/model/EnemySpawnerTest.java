@@ -2,12 +2,16 @@ package it.university.survivor.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import it.university.survivor.model.enemy.Boss;
 import it.university.survivor.model.enemy.EnemySpawner;
+import it.university.survivor.model.enemy.EnemyType;
+import it.university.survivor.model.enemy.MiniBoss;
 
 class EnemySpawnerTest {
 
@@ -121,8 +125,102 @@ class EnemySpawnerTest {
         assertThrows(
                 UnsupportedOperationException.class,
                 () -> enemies.add(
-                        new Enemy(new Position(200.0, 200.0), 100, 2.0)
+                        new Enemy(
+                                new Position(200.0, 200.0),
+                                100,
+                                2.0
+                        )
                 )
         );
+    }
+
+    @Test
+    void spawnerShouldCreateBasicEnemiesWithLegacyConstructor() {
+        EnemySpawner spawner = new EnemySpawner(100, 80.0);
+
+        List<Enemy> enemies = spawner.spawn(List.of(
+                new Position(0.0, 0.0),
+                new Position(100.0, 100.0)
+        ));
+
+        assertEquals(2, enemies.size());
+        assertEquals(EnemyType.BASIC, enemies.get(0).getType());
+        assertEquals(EnemyType.BASIC, enemies.get(1).getType());
+    }
+
+    @Test
+    void spawnerShouldCreateEnemiesWithConfiguredType() {
+        EnemySpawner spawner = new EnemySpawner(
+                60,
+                1.8,
+                EnemyType.FAST
+        );
+
+        List<Enemy> enemies = spawner.spawn(List.of(
+                new Position(0.0, 0.0),
+                new Position(100.0, 100.0)
+        ));
+
+        assertEquals(2, enemies.size());
+
+        assertEquals(EnemyType.FAST, enemies.get(0).getType());
+        assertEquals(EnemyType.FAST, enemies.get(1).getType());
+
+        assertEquals(
+                60,
+                enemies.get(0).getHealth().getMaxHealth()
+        );
+
+        assertEquals(
+                1.8,
+                enemies.get(0).getMovementSpeed(),
+                0.0001
+        );
+    }
+
+    @Test
+    void spawnerShouldRejectNullEnemyType() {
+        assertThrows(
+                NullPointerException.class,
+                () -> new EnemySpawner(
+                        100,
+                        80.0,
+                        null
+                )
+        );
+    }
+
+    @Test
+    void spawnerShouldCreateMiniBoss() {
+        EnemySpawner spawner = new EnemySpawner(
+                500,
+                0.7,
+                EnemyType.MINIBOSS
+        );
+
+        List<Enemy> enemies = spawner.spawn(List.of(
+                new Position(100.0, 100.0)
+        ));
+
+        assertEquals(1, enemies.size());
+        assertTrue(enemies.get(0) instanceof MiniBoss);
+        assertEquals(EnemyType.MINIBOSS, enemies.get(0).getType());
+    }
+
+    @Test
+    void spawnerShouldCreateBoss() {
+        EnemySpawner spawner = new EnemySpawner(
+                1000,
+                0.6,
+                EnemyType.BOSS
+        );
+
+        List<Enemy> enemies = spawner.spawn(List.of(
+                new Position(400.0, 300.0)
+        ));
+
+        assertEquals(1, enemies.size());
+        assertTrue(enemies.get(0) instanceof Boss);
+        assertEquals(EnemyType.BOSS, enemies.get(0).getType());
     }
 }

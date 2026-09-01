@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import it.university.survivor.model.enemy.EnemyType;
+
 class EnemyTest {
 
     @Test
@@ -53,103 +55,164 @@ class EnemyTest {
         assertEquals(0, enemy.getHealth().getCurrentHealth());
     }
 
-     @Test
+    @Test
     void enemyShouldRejectNullPosition() {
-        assertThrows(NullPointerException.class, () ->
-            new Enemy(null, 100, 2.0)
+        assertThrows(
+                NullPointerException.class,
+                () -> new Enemy(null, 100, 2.0)
         );
     }
 
     @Test
     void enemyShouldRejectZeroSpeed() {
-    assertThrows(IllegalArgumentException.class, () ->
-        new Enemy(new Position(0.0, 0.0), 100, 0.0)
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Enemy(
+                        new Position(0.0, 0.0),
+                        100,
+                        0.0
+                )
         );
     }
 
     @Test
     void enemyShouldRejectNegativeSpeed() {
-    assertThrows(IllegalArgumentException.class, () ->
-        new Enemy(new Position(0.0, 0.0), 100, -2.0)
-         );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Enemy(
+                        new Position(0.0, 0.0),
+                        100,
+                        -2.0
+                )
+        );
     }
 
     @Test
     void enemyShouldRejectNonFiniteSpeed() {
-    assertThrows(IllegalArgumentException.class, () ->
-        new Enemy(new Position(0.0, 0.0), 100, Double.NaN)
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Enemy(
+                        new Position(0.0, 0.0),
+                        100,
+                        Double.NaN
+                )
         );
 
-    assertThrows(IllegalArgumentException.class, () ->
-        new Enemy(new Position(0.0, 0.0), 100, Double.POSITIVE_INFINITY)
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new Enemy(
+                        new Position(0.0, 0.0),
+                        100,
+                        Double.POSITIVE_INFINITY
+                )
         );
     }
 
     @Test
     void enemyShouldRejectNullTarget() {
-    Enemy enemy = new Enemy(
-        new Position(0.0, 0.0),
-        100,
-        2.0
+        Enemy enemy = new Enemy(
+                new Position(0.0, 0.0),
+                100,
+                2.0
         );
 
-    assertThrows(NullPointerException.class, () ->
-        enemy.calculateDesiredDirection(null)
+        assertThrows(
+                NullPointerException.class,
+                () -> enemy.calculateDesiredDirection(null)
         );
     }
 
     @Test
     void enemyShouldReturnZeroDirectionForSamePosition() {
-    Enemy enemy = new Enemy(
-        new Position(0.0, 0.0),
-        100,
-        2.0
+        Enemy enemy = new Enemy(
+                new Position(0.0, 0.0),
+                100,
+                2.0
         );
 
-    Position direction = enemy.calculateDesiredDirection(
-        new Position(0.0, 0.0)
+        Position direction = enemy.calculateDesiredDirection(
+                new Position(0.0, 0.0)
         );
 
-    assertEquals(0.0, direction.x(), 0.0001);
-    assertEquals(0.0, direction.y(), 0.0001);
+        assertEquals(0.0, direction.x(), 0.0001);
+        assertEquals(0.0, direction.y(), 0.0001);
     }
 
     @Test
     void enemyShouldExposeMovementSpeed() {
-    Enemy enemy = new Enemy(
-        new Position(0.0, 0.0),
-        100,
-        2.0
+        Enemy enemy = new Enemy(
+                new Position(0.0, 0.0),
+                100,
+                2.0
         );
 
-    assertEquals(2.0, enemy.getMovementSpeed(), 0.0001);
+        assertEquals(2.0, enemy.getMovementSpeed(), 0.0001);
     }
 
     @Test
     void enemyShouldMoveToNewPosition() {
-    Enemy enemy = new Enemy(
-        new Position(0.0, 0.0),
-        100,
-        2.0
+        Enemy enemy = new Enemy(
+                new Position(0.0, 0.0),
+                100,
+                2.0
         );
 
-    Position newPosition = new Position(5.0, 7.0);
+        Position newPosition = new Position(5.0, 7.0);
 
-    enemy.moveTo(newPosition);
+        enemy.moveTo(newPosition);
 
-    assertEquals(newPosition, enemy.getPosition());
+        assertEquals(newPosition, enemy.getPosition());
     }
 
     @Test
     void enemyShouldRejectNullPositionInMoveTo() {
-    Enemy enemy = new Enemy(
-        new Position(0.0, 0.0),
-        100,
-        2.0
+        Enemy enemy = new Enemy(
+                new Position(0.0, 0.0),
+                100,
+                2.0
         );
 
-    assertThrows(NullPointerException.class, () ->
-        enemy.moveTo(null)
+        assertThrows(
+                NullPointerException.class,
+                () -> enemy.moveTo(null)
+        );
+    }
+
+    @Test
+    void legacyConstructorShouldCreateBasicEnemy() {
+        Enemy enemy = new Enemy(
+                new Position(0.0, 0.0),
+                100,
+                2.0
+        );
+
+        assertEquals(EnemyType.BASIC, enemy.getType());
+    }
+
+    @Test
+    void enemyShouldExposeConfiguredType() {
+        Enemy enemy = new Enemy(
+                new Position(0.0, 0.0),
+                60,
+                1.8,
+                EnemyType.FAST
+        );
+
+        assertEquals(EnemyType.FAST, enemy.getType());
+        assertEquals(60, enemy.getHealth().getMaxHealth());
+        assertEquals(1.8, enemy.getMovementSpeed(), 0.0001);
+    }
+
+    @Test
+    void enemyShouldRejectNullType() {
+        assertThrows(
+                NullPointerException.class,
+                () -> new Enemy(
+                        new Position(0.0, 0.0),
+                        100,
+                        2.0,
+                        null
+                )
         );
     }
 }

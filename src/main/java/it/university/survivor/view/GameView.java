@@ -8,7 +8,9 @@ import it.university.survivor.model.Health;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.Position;
 import it.university.survivor.model.Projectile;
+import it.university.survivor.model.enemy.EnemyType;
 import it.university.survivor.model.enemy.Wave;
+import it.university.survivor.model.enemy.WaveProgression;
 import javafx.geometry.VPos;
 import javafx.scene.Parent;
 import javafx.scene.canvas.Canvas;
@@ -24,7 +26,6 @@ import java.util.Objects;
 public final class GameView {
 
     private static final double PLAYER_MARKER_RADIUS = 8.0;
-    private static final double ENEMY_MARKER_RADIUS = 6.0;
     private static final double PROJECTILE_MARKER_RADIUS = 3.0;
 
     private static final double HUD_MARGIN = 16.0;
@@ -45,9 +46,14 @@ public final class GameView {
     private static final double XP_BAR_INSET = 2.0;
     private static final double XP_LABEL_GAP = 6.0;
 
-    private static final int TOTAL_WAVES = 5;
+    private static final int TOTAL_WAVES = WaveProgression.MAX_WAVES;
     private static final double WAVE_FONT_SIZE = 18.0;
-    private static final double RESULT_FONT_SIZE = 52.0;
+
+    private static final double BOSS_BAR_WIDTH = 360.0;
+    private static final double BOSS_BAR_HEIGHT = 16.0;
+    private static final double BOSS_BAR_Y = 52.0;
+    private static final double BOSS_LABEL_GAP = 5.0;
+    private static final double BOSS_BAR_INSET = 2.0;
 
     private static final Color HEART_EMPTY_COLOR = Color.rgb(62, 24, 32);
     private static final Color HEART_FILL_COLOR = Color.rgb(220, 38, 58);
@@ -55,7 +61,9 @@ public final class GameView {
     private static final Color XP_BACKGROUND_COLOR = Color.rgb(24, 30, 40);
     private static final Color XP_FILL_COLOR = Color.rgb(45, 132, 220);
     private static final Color HUD_OUTLINE_COLOR = Color.rgb(12, 16, 22);
-    private static final Color RESULT_OVERLAY_COLOR = Color.rgb(0, 0, 0, 0.58);
+    private static final Color BOSS_BAR_BACKGROUND_COLOR = Color.rgb(52, 18, 24);
+    private static final Color BOSS_BAR_FILL_COLOR = Color.rgb(190, 30, 55);
+    private static final Color BOSS_BAR_OUTLINE_COLOR = Color.rgb(235, 190, 70);
 
     private final Canvas canvas;
     private final Pane root;
@@ -110,20 +118,12 @@ public final class GameView {
         graphics.setFill(Color.rgb(32, 37, 43));
         graphics.fillRect(0.0, 0.0, canvas.getWidth(), canvas.getHeight());
 
-        double enemyMarkerDiameter = ENEMY_MARKER_RADIUS * 2.0;
-        graphics.setFill(Color.CRIMSON);
         for (Enemy enemy : world.getEnemies()) {
             if (enemy.isDead()) {
                 continue;
             }
 
-            Position enemyPosition = enemy.getPosition();
-            graphics.fillOval(
-                    enemyPosition.x() - ENEMY_MARKER_RADIUS,
-                    enemyPosition.y() - ENEMY_MARKER_RADIUS,
-                    enemyMarkerDiameter,
-                    enemyMarkerDiameter
-            );
+            drawEnemy(graphics, enemy);
         }
 
         double projectileMarkerDiameter = PROJECTILE_MARKER_RADIUS * 2.0;
@@ -162,14 +162,14 @@ public final class GameView {
     ) {
         if (runState == RunState.ACTIVE_WAVE) {
             if (currentWave != null) {
-                drawWaveHud(graphics, currentWave);
+                boolean bossHealthBarVisible = drawBossHealthBar(graphics, currentWave);
+                if (!bossHealthBarVisible) {
+                    drawWaveHud(graphics, currentWave);
+                }
             }
             return;
         }
 
-        if (runState == RunState.VICTORY || runState == RunState.DEFEAT) {
-            drawRunResultOverlay(graphics, runState);
-        }
     }
 
     private void drawWaveHud(GraphicsContext graphics, Wave currentWave) {
@@ -186,21 +186,115 @@ public final class GameView {
         graphics.restore();
     }
 
-    private void drawRunResultOverlay(GraphicsContext graphics, RunState runState) {
-        graphics.save();
-        graphics.setFill(RESULT_OVERLAY_COLOR);
-        graphics.fillRect(0.0, 0.0, canvas.getWidth(), canvas.getHeight());
+    private void drawEnemy(GraphicsContext graphics, Enemy enemy) {
+        EnemyType enemyType = enemy.getType();
+        double radius = enemyType.collisionRadius();
+        double diameter = radius * 2.0;
+        Position position = enemy.getPosition();
 
-        graphics.setFill(Color.WHITE);
-        graphics.setFont(Font.font("System", FontWeight.BOLD, RESULT_FONT_SIZE));
-        graphics.setTextAlign(TextAlignment.CENTER);
-        graphics.setTextBaseline(VPos.CENTER);
-        graphics.fillText(
-                runState == RunState.VICTORY ? "VICTORY" : "DEFEAT",
-                canvas.getWidth() / 2.0,
-                canvas.getHeight() / 2.0
+        graphics.save();
+        graphics.setFill(enemyFillColor(enemyType));
+        graphics.fillOval(
+                position.x() - radius,
+                position.y() - radius,
+                diameter,
+                diameter
+        );
+        graphics.setStroke(enemyOutlineColor(enemyType));
+        graphics.setLineWidth(enemyOutlineWidth(enemyType));
+        graphics.strokeOval(
+                position.x() - radius,
+                position.y() - radius,
+                diameter,
+                diameter
         );
         graphics.restore();
+    }
+
+    private boolean drawBossHealthBar(GraphicsContext graphics, Wave currentWave) {
+        if (currentWave.getWaveNumber() != TOTAL_WAVES) {
+            return false;
+        }
+
+        Enemy boss = findLivingBoss(currentWave);
+        if (boss == null) {
+            return false;
+        }
+
+        Health health = boss.getHealth();
+        double healthRatio = calculateRatio(
+                health.getCurrentHealth(),
+                health.getMaxHealth()
+        );
+        double availableWidth = Math.max(0.0, canvas.getWidth() - 2.0 * HUD_MARGIN);
+        double barWidth = Math.min(BOSS_BAR_WIDTH, availableWidth);
+        double barX = (canvas.getWidth() - barWidth) / 2.0;
+        double innerWidth = Math.max(0.0, barWidth - 2.0 * BOSS_BAR_INSET);
+        double innerHeight = BOSS_BAR_HEIGHT - 2.0 * BOSS_BAR_INSET;
+
+        graphics.save();
+        graphics.setFill(Color.WHITE);
+        graphics.setFont(Font.font("System", FontWeight.BOLD, 14.0));
+        graphics.setTextAlign(TextAlignment.CENTER);
+        graphics.setTextBaseline(VPos.BOTTOM);
+        graphics.fillText(
+                "BOSS  " + health.getCurrentHealth() + " / " + health.getMaxHealth(),
+                canvas.getWidth() / 2.0,
+                BOSS_BAR_Y - BOSS_LABEL_GAP
+        );
+
+        graphics.setFill(BOSS_BAR_BACKGROUND_COLOR);
+        graphics.fillRect(barX, BOSS_BAR_Y, barWidth, BOSS_BAR_HEIGHT);
+        graphics.setFill(BOSS_BAR_FILL_COLOR);
+        graphics.fillRect(
+                barX + BOSS_BAR_INSET,
+                BOSS_BAR_Y + BOSS_BAR_INSET,
+                innerWidth * healthRatio,
+                innerHeight
+        );
+        graphics.setStroke(BOSS_BAR_OUTLINE_COLOR);
+        graphics.setLineWidth(2.0);
+        graphics.strokeRect(barX, BOSS_BAR_Y, barWidth, BOSS_BAR_HEIGHT);
+        graphics.restore();
+        return true;
+    }
+
+    private static Enemy findLivingBoss(Wave wave) {
+        for (Enemy enemy : wave.getEnemies()) {
+            if (enemy.getType() == EnemyType.BOSS && !enemy.isDead()) {
+                return enemy;
+            }
+        }
+        return null;
+    }
+
+    private static Color enemyFillColor(EnemyType enemyType) {
+        return switch (enemyType) {
+            case BASIC -> Color.CRIMSON;
+            case FAST -> Color.ORANGERED;
+            case TANK -> Color.SEAGREEN;
+            case RANGED -> Color.MEDIUMPURPLE;
+            case MINIBOSS -> Color.DARKORANGE;
+            case BOSS -> Color.DARKMAGENTA;
+        };
+    }
+
+    private static Color enemyOutlineColor(EnemyType enemyType) {
+        return switch (enemyType) {
+            case BASIC -> Color.DARKRED;
+            case FAST -> Color.GOLD;
+            case TANK -> Color.LIGHTGREEN;
+            case RANGED -> Color.PLUM;
+            case MINIBOSS, BOSS -> Color.GOLD;
+        };
+    }
+
+    private static double enemyOutlineWidth(EnemyType enemyType) {
+        return switch (enemyType) {
+            case MINIBOSS -> 2.5;
+            case BOSS -> 3.0;
+            default -> 1.5;
+        };
     }
 
     private void drawHealthHud(GraphicsContext graphics, Health health) {
