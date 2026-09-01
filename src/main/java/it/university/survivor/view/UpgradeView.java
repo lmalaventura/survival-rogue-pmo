@@ -17,7 +17,6 @@ public final class UpgradeView extends VBox {
 
     private final UpgradeChoiceSession session;
     private final UpgradeSelectionHandler handler;
-    private final Runnable rerollHandler;
     private final VBox optionsContainer;
     private final Button rerollButton;
 
@@ -29,10 +28,7 @@ public final class UpgradeView extends VBox {
     ) {
         this.session = Objects.requireNonNull(session, "Session must not be null");
         this.handler = Objects.requireNonNull(handler, "Handler must not be null");
-        this.rerollHandler = Objects.requireNonNull(
-                rerollHandler,
-                "Reroll handler must not be null"
-        );
+        Objects.requireNonNull(rerollHandler, "Reroll handler must not be null");
 
         setSpacing(15);
         setAlignment(Pos.CENTER);

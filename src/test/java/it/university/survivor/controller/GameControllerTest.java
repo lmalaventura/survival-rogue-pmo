@@ -2457,61 +2457,6 @@ class GameControllerTest {
                 () -> controller.setDirectionActive(null, true));
     }
 
-    private static void assertInvalidDeltaDoesNotChangeContactState(double invalidDelta) {
-        Enemy enemy = new Enemy(new Position(500.0, 500.0), 100, MOVEMENT_SPEED);
-        GameWorld world = createWorld(500.0, 500.0, enemy);
-        GameController controller = createController(world);
-        controller.update(0.1);
-        Position playerPosition = world.getPlayer().getPosition();
-        Position enemyPosition = enemy.getPosition();
-
-        assertThrows(IllegalArgumentException.class,
-                () -> controller.update(invalidDelta));
-        assertAll(
-                () -> assertEquals(playerPosition, world.getPlayer().getPosition()),
-                () -> assertEquals(enemyPosition, enemy.getPosition()),
-                () -> assertEquals(90,
-                        world.getPlayer().getHealth().getCurrentHealth())
-        );
-
-        for (int update = 0; update < 4; update++) {
-            controller.update(0.1);
-        }
-        assertEquals(90, world.getPlayer().getHealth().getCurrentHealth());
-
-        controller.update(0.1);
-        assertEquals(80, world.getPlayer().getHealth().getCurrentHealth());
-    }
-
-    private static void assertInvalidDeltaDoesNotChangeProjectileState(double invalidDelta) {
-        Enemy enemy = new Enemy(new Position(486.0, 500.0), 20, MOVEMENT_SPEED);
-        GameWorld world = createWorld(500.0, 500.0, enemy);
-        Projectile projectile = projectileAt(486.0, 500.0, 1.0, 0.0, 25, 100.0);
-        world.addProjectile(projectile);
-        ExperienceProgression experienceProgression = new ExperienceProgression();
-        RunStatistics runStatistics = new RunStatistics();
-        GameController controller = createController(
-                world,
-                experienceProgression,
-                runStatistics
-        );
-        Position initialPosition = projectile.getPosition();
-
-        assertThrows(IllegalArgumentException.class,
-                () -> controller.update(invalidDelta));
-        assertAll(
-                () -> assertEquals(initialPosition, projectile.getPosition()),
-                () -> assertEquals(20, enemy.getHealth().getCurrentHealth()),
-                () -> assertEquals(List.of(projectile), world.getProjectiles()),
-                () -> assertEquals(100,
-                        world.getPlayer().getHealth().getCurrentHealth()),
-                () -> assertEquals(0,
-                        experienceProgression.getCurrentExperience()),
-                () -> assertEquals(0, runStatistics.getEnemiesDefeated()),
-                () -> assertEquals(0, runStatistics.getExperienceGained())
-        );
-    }
-
     @Test
     void runtimeLoadoutFiresAllOwnedWeapons() {
         Enemy target = new Enemy(
@@ -3107,23 +3052,6 @@ class GameControllerTest {
         controller.update(0.1);
 
         return world.getEnemies().stream().map(Enemy::getPosition).toList();
-    }
-
-    private static void assertEnemiesAreSeparated(List<Enemy> enemies) {
-        for (int firstIndex = 0; firstIndex < enemies.size(); firstIndex++) {
-            for (int secondIndex = firstIndex + 1;
-                    secondIndex < enemies.size();
-                    secondIndex++) {
-                Position firstPosition = enemies.get(firstIndex).getPosition();
-                Position secondPosition = enemies.get(secondIndex).getPosition();
-                assertTrue(
-                        distanceBetween(firstPosition, secondPosition)
-                                >= ENEMY_MIN_SEPARATION - TOLERANCE,
-                        () -> "Enemies are too close: "
-                                + firstPosition + " and " + secondPosition
-                );
-            }
-        }
     }
 
     private static double distanceBetween(Position first, Position second) {
