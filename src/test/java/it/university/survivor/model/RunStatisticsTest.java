@@ -6,13 +6,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 
 class RunStatisticsTest {
-    @Test 
+    @Test
     void initialStateIsZeroEmpty() {
         RunStatistics stats = new RunStatistics();
         assertEquals(0, stats.getEnemiesDefeated());
         assertEquals(0, stats.getWavesCompleted());
         assertEquals(0, stats.getExperienceGained());
         assertEquals(0, stats.getUpgradesChosen());
+        assertEquals(0, stats.getWeaponChoicesMade());
         assertEquals(0, stats.getRerollsUsed());
         assertEquals(0.0, stats.getElapsedTime(), 0.0001);
         assertTrue(stats.getChosenItems().isEmpty());
@@ -27,6 +28,7 @@ class RunStatisticsTest {
         stats.recordWaveCompleted();
         stats.recordExperienceGained(150);
         stats.recordUpgradeSelected(item);
+        stats.recordWeaponChoice();
         stats.recordReroll();
         stats.addElapsedTime(45.5);
 
@@ -35,6 +37,7 @@ class RunStatisticsTest {
         assertEquals(150, stats.getExperienceGained());
         assertEquals(1, stats.getRerollsUsed());
         assertEquals(1, stats.getUpgradesChosen());
+        assertEquals(1, stats.getWeaponChoicesMade());
         assertEquals(45.5, stats.getElapsedTime(), 0.0001);
 
         assertEquals(1, stats.getChosenItems().size());

@@ -15,16 +15,22 @@ import it.university.survivor.model.StatModifier;
 import it.university.survivor.model.StatType;
 import it.university.survivor.model.UpgradeCatalog;
 import it.university.survivor.model.UpgradeChoiceSession;
+import it.university.survivor.model.UpgradeOption;
+import it.university.survivor.model.WeaponUpgradeChoice;
 import it.university.survivor.model.enemy.EnemyType;
 import it.university.survivor.model.enemy.Wave;
 import it.university.survivor.model.enemy.WaveConfig;
 import it.university.survivor.model.enemy.WaveProgression;
 import it.university.survivor.weapon.NearestEnemyAttackStrategy;
 import it.university.survivor.weapon.Weapon;
+import it.university.survivor.weapon.WeaponFactory;
+import it.university.survivor.weapon.WeaponType;
 import it.university.survivor.weapon.WeaponStats;
 import org.junit.jupiter.api.Test;
 
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -3439,6 +3445,174 @@ class GameControllerTest {
         );
     }
 
+    @Test
+    void runtimeLoadoutFiresAllOwnedWeapons() {
+        Enemy target = new Enemy(
+                new Position(700.0, 500.0),
+                10_000,
+                MOVEMENT_SPEED
+        );
+        GameWorld world = createWorld(500.0, 500.0, target);
+        Wave wave = new Wave(1, List.of(target));
+        Map<WeaponType, Weapon> loadout = new EnumMap<>(WeaponType.class);
+        loadout.put(WeaponType.AUTOMATIC, WeaponFactory.createAutomatic());
+        loadout.put(WeaponType.PULSE, WeaponFactory.createPulse());
+        GameController controller = new GameController(
+                world,
+                new ExperienceProgression(),
+                new RunStatistics(),
+                loadout,
+                wave
+        );
+
+        controller.update(0.01);
+
+        assertEquals(9, world.getProjectiles().size());
+    }
+
+    @Test
+    void mixedLevelUpCanUnlockWeaponAndNewWeaponInheritsPreviousDamageItems() {
+        Enemy completedEnemy = deadEnemyAt(100.0, 100.0);
+        GameWorld world = createWorld(500.0, 500.0, completedEnemy);
+        Wave completedWave = new Wave(1, List.of(completedEnemy));
+        ExperienceProgression progression = progressionWithPendingLevelUps(2);
+        RunStatistics statistics = new RunStatistics();
+        Map<WeaponType, Weapon> loadout = new EnumMap<>(WeaponType.class);
+        Weapon automatic = WeaponFactory.createAutomatic();
+        while (!automatic.isEvolved()) {
+            automatic.levelUp();
+        }
+        loadout.put(WeaponType.AUTOMATIC, automatic);
+        GameController controller = createDeterministicMixedUpgradeController(
+                world,
+                progression,
+                statistics,
+                loadout,
+                completedWave,
+                StatType.DAMAGE,
+                ModifierType.FLAT,
+                5.0
+        );
+
+        controller.update(0.1);
+        UpgradeOption itemChoice = controller.getCurrentUpgradeSession()
+                .getCurrentChoices()
+                .stream()
+                .filter(UpgradeOption::isItem)
+                .findFirst()
+                .orElseThrow();
+        controller.selectUpgradeOption(itemChoice);
+
+        UpgradeOption weaponOption = controller.getCurrentUpgradeSession()
+                .getCurrentChoices()
+                .stream()
+                .filter(UpgradeOption::isWeapon)
+                .findFirst()
+                .orElseThrow();
+        WeaponUpgradeChoice offeredWeapon = weaponOption.weaponChoice();
+        int baseDamage = WeaponFactory.create(offeredWeapon.weaponType())
+                .getCurrentStats()
+                .getDamage();
+        controller.selectUpgradeOption(weaponOption);
+
+        Weapon resultingWeapon = controller.getWeapons().get(offeredWeapon.weaponType());
+        assertAll(
+                () -> assertNotNull(resultingWeapon),
+                () -> assertEquals(baseDamage + 5, resultingWeapon.getCurrentStats().getDamage()),
+                () -> assertEquals(1, statistics.getUpgradesChosen()),
+                () -> assertEquals(1, statistics.getWeaponChoicesMade()),
+                () -> assertEquals(RunState.ACTIVE_WAVE, controller.getRunState())
+        );
+    }
+
+    @Test
+    void choosingOwnedWeaponLevelsItAndCanTriggerEvolution() {
+        Enemy completedEnemy = deadEnemyAt(100.0, 100.0);
+        GameWorld world = createWorld(500.0, 500.0, completedEnemy);
+        Wave completedWave = new Wave(1, List.of(completedEnemy));
+        ExperienceProgression progression = progressionWithPendingLevelUps(1);
+        RunStatistics statistics = new RunStatistics();
+        Map<WeaponType, Weapon> loadout = new EnumMap<>(WeaponType.class);
+        for (WeaponType type : WeaponType.values()) {
+            Weapon weapon = WeaponFactory.create(type);
+            while (!weapon.isEvolved()) {
+                weapon.levelUp();
+            }
+            loadout.put(type, weapon);
+        }
+        Weapon automatic = WeaponFactory.createAutomatic();
+        automatic.levelUp();
+        automatic.levelUp();
+        automatic.levelUp();
+        loadout.put(WeaponType.AUTOMATIC, automatic);
+        GameController controller = createDeterministicMixedUpgradeController(
+                world,
+                progression,
+                statistics,
+                loadout,
+                completedWave,
+                StatType.MAX_HEALTH,
+                ModifierType.FLAT,
+                20.0
+        );
+
+        controller.update(0.1);
+        UpgradeOption weaponOption = controller.getCurrentUpgradeSession()
+                .getCurrentChoices()
+                .stream()
+                .filter(UpgradeOption::isWeapon)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(WeaponType.AUTOMATIC, weaponOption.weaponChoice().weaponType());
+        assertTrue(weaponOption.weaponChoice().willEvolve());
+
+        controller.selectUpgradeOption(weaponOption);
+
+        assertAll(
+                () -> assertEquals(5, automatic.getLevel()),
+                () -> assertTrue(automatic.isEvolved()),
+                () -> assertEquals(1, statistics.getWeaponChoicesMade())
+        );
+    }
+
+    @Test
+    void damageItemAppliesToEveryOwnedWeapon() {
+        Enemy completedEnemy = deadEnemyAt(100.0, 100.0);
+        GameWorld world = createWorld(500.0, 500.0, completedEnemy);
+        Wave completedWave = new Wave(1, List.of(completedEnemy));
+        ExperienceProgression progression = progressionWithPendingLevelUps(1);
+        RunStatistics statistics = new RunStatistics();
+        Map<WeaponType, Weapon> loadout = new EnumMap<>(WeaponType.class);
+        Weapon automatic = WeaponFactory.createAutomatic();
+        Weapon shotgun = WeaponFactory.createShotgun();
+        loadout.put(WeaponType.AUTOMATIC, automatic);
+        loadout.put(WeaponType.SHOTGUN, shotgun);
+        GameController controller = createDeterministicMixedUpgradeController(
+                world,
+                progression,
+                statistics,
+                loadout,
+                completedWave,
+                StatType.DAMAGE,
+                ModifierType.FLAT,
+                5.0
+        );
+
+        controller.update(0.1);
+        UpgradeOption itemChoice = controller.getCurrentUpgradeSession()
+                .getCurrentChoices()
+                .stream()
+                .filter(UpgradeOption::isItem)
+                .findFirst()
+                .orElseThrow();
+        controller.selectUpgradeOption(itemChoice);
+
+        assertAll(
+                () -> assertEquals(30, automatic.getCurrentStats().getDamage()),
+                () -> assertEquals(19, shotgun.getCurrentStats().getDamage())
+        );
+    }
+
     private static void assertMilestoneWaveUpgradeTransition(
             int completedWaveNumber,
             int expectedNextWaveNumber
@@ -3606,6 +3780,39 @@ class GameControllerTest {
                 wave,
                 catalog,
                 deterministicRarityRandom
+        );
+    }
+
+    private static GameController createDeterministicMixedUpgradeController(
+            GameWorld world,
+            ExperienceProgression progression,
+            RunStatistics statistics,
+            Map<WeaponType, Weapon> weapons,
+            Wave wave,
+            StatType statType,
+            ModifierType modifierType,
+            double baseValue
+    ) {
+        StatModifier modifier = new StatModifier(statType, modifierType, baseValue);
+        UpgradeCatalog catalog = new UpgradeCatalog(List.of(
+                new UpgradeCatalog.Template("Test upgrade A", modifier),
+                new UpgradeCatalog.Template("Test upgrade B", modifier),
+                new UpgradeCatalog.Template("Test upgrade C", modifier)
+        ));
+        Random deterministicRandom = new Random(42L) {
+            @Override
+            public double nextDouble() {
+                return 0.0;
+            }
+        };
+        return new GameController(
+                world,
+                progression,
+                statistics,
+                weapons,
+                wave,
+                catalog,
+                deterministicRandom
         );
     }
 

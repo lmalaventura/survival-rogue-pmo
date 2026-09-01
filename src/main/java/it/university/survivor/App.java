@@ -15,9 +15,9 @@ import it.university.survivor.view.GameView;
 import it.university.survivor.view.ResultView;
 import it.university.survivor.view.RunInfoView;
 import it.university.survivor.view.UpgradeView;
-import it.university.survivor.weapon.NearestEnemyAttackStrategy;
 import it.university.survivor.weapon.Weapon;
-import it.university.survivor.weapon.WeaponStats;
+import it.university.survivor.weapon.WeaponFactory;
+import it.university.survivor.weapon.WeaponType;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
@@ -26,6 +26,7 @@ import javafx.stage.Stage;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 
 public class App extends Application {
 
@@ -33,9 +34,6 @@ public class App extends Application {
     private static final double ARENA_HEIGHT = 600.0;
     private static final int PLAYER_MAX_HEALTH = 100;
     private static final double PLAYER_MOVEMENT_SPEED = 200.0;
-    private static final double WEAPON_COOLDOWN_SECONDS = 0.75;
-    private static final int WEAPON_DAMAGE = 25;
-    private static final double PROJECTILE_SPEED = 300.0;
 
     private GameLoop gameLoop;
     private UpgradeChoiceSession displayedUpgradeSession;
@@ -64,19 +62,15 @@ public class App extends Application {
         );
         ExperienceProgression progression = new ExperienceProgression();
         RunStatistics statistics = new RunStatistics();
-        Weapon weapon = new Weapon(
-                new WeaponStats(
-                        WEAPON_COOLDOWN_SECONDS,
-                        WEAPON_DAMAGE,
-                        PROJECTILE_SPEED
-                ),
-                new NearestEnemyAttackStrategy()
+        Map<WeaponType, Weapon> initialWeapons = Map.of(
+                WeaponType.AUTOMATIC,
+                WeaponFactory.createAutomatic()
         );
         GameController controller = new GameController(
                 world,
                 progression,
                 statistics,
-                weapon,
+                initialWeapons,
                 initialWave
         );
         GameView view = new GameView(ARENA_WIDTH, ARENA_HEIGHT, progression);
@@ -105,8 +99,7 @@ public class App extends Application {
                         world,
                         controller,
                         progression,
-                        statistics,
-                        weapon
+                        statistics
                 );
             }
             updateLogicalDirections(controller, pressedKeys);
@@ -175,8 +168,8 @@ public class App extends Application {
         displayedUpgradeSession = currentSession;
         displayedUpgradeView = new UpgradeView(
                 currentSession,
-                item -> {
-                    controller.selectUpgrade(item);
+                option -> {
+                    controller.selectUpgradeOption(option);
                     synchronizeUpgradeOverlay(sceneRoot, controller);
                 },
                 controller::rerollUpgradeChoices
@@ -197,8 +190,7 @@ public class App extends Application {
             GameWorld world,
             GameController controller,
             ExperienceProgression progression,
-            RunStatistics statistics,
-            Weapon weapon
+            RunStatistics statistics
     ) {
         if (controller.getRunState() != RunState.ACTIVE_WAVE) {
             return;
@@ -211,7 +203,7 @@ public class App extends Application {
         displayedRunInfoView = new RunInfoView(
                 world.getPlayer(),
                 progression,
-                weapon.getCurrentStats(),
+                controller.getWeapons(),
                 statistics,
                 controller.getCurrentWave()
         );
@@ -246,7 +238,8 @@ public class App extends Application {
         displayedResultView = new ResultView(
                 currentState,
                 statistics,
-                progression.getLevel()
+                progression.getLevel(),
+                controller.getWeapons()
         );
         sceneRoot.getChildren().add(displayedResultView);
     }

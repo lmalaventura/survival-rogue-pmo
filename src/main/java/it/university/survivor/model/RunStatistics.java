@@ -12,6 +12,7 @@ public class RunStatistics {
     private int wavesCompleted;
     private int experienceGained;
     private int upgradesChosen;
+    private int weaponChoicesMade;
     private int rerollsUsed;
     private double elapsedTime;
     private final List<Item> chosenItems;
@@ -21,6 +22,7 @@ public class RunStatistics {
         this.wavesCompleted = 0;
         this.experienceGained = 0;
         this.upgradesChosen = 0;
+        this.weaponChoicesMade = 0;
         this.rerollsUsed = 0;
         this.elapsedTime = 0.0;
         this.chosenItems = new ArrayList<>();
@@ -45,7 +47,11 @@ public class RunStatistics {
         this.chosenItems.add(item);
         this.upgradesChosen++;
     }
-    
+
+    public void recordWeaponChoice() {
+        this.weaponChoicesMade++;
+    }
+
     public void recordReroll() {
         this.rerollsUsed++;
     }
@@ -59,7 +65,7 @@ public class RunStatistics {
     public int getEnemiesDefeated() {
         return enemiesDefeated;
     }
-   
+
     public int getWavesCompleted(){
         return wavesCompleted;
     }
@@ -69,6 +75,10 @@ public class RunStatistics {
     public int getUpgradesChosen(){
         return upgradesChosen;
     }
+    public int getWeaponChoicesMade() {
+        return weaponChoicesMade;
+    }
+
     public int getRerollsUsed(){
         return rerollsUsed;
     }

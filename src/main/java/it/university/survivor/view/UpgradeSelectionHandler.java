@@ -1,9 +1,8 @@
 package it.university.survivor.view;
 
-import it.university.survivor.model.Item;
+import it.university.survivor.model.UpgradeOption;
 
 @FunctionalInterface
 public interface UpgradeSelectionHandler {
-    void onUpgradeSelected(Item item);
-
+    void onUpgradeSelected(UpgradeOption option);
 }

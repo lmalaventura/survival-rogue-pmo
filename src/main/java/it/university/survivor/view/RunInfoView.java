@@ -6,7 +6,9 @@ import it.university.survivor.model.Item;
 import it.university.survivor.model.Player;
 import it.university.survivor.model.RunStatistics;
 import it.university.survivor.model.enemy.Wave;
+import it.university.survivor.weapon.Weapon;
 import it.university.survivor.weapon.WeaponStats;
+import it.university.survivor.weapon.WeaponType;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -14,6 +16,7 @@ import javafx.scene.layout.VBox;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 public final class RunInfoView extends VBox {
@@ -23,7 +26,7 @@ public final class RunInfoView extends VBox {
     public RunInfoView(
             Player player,
             ExperienceProgression experienceProgression,
-            WeaponStats weaponStats,
+            Map<WeaponType, Weapon> weapons,
             RunStatistics runStatistics,
             Wave currentWave
     ) {
@@ -32,13 +35,13 @@ public final class RunInfoView extends VBox {
                 experienceProgression,
                 "Experience progression must not be null"
         );
-        Objects.requireNonNull(weaponStats, "Weapon stats must not be null");
+        Objects.requireNonNull(weapons, "Weapons must not be null");
         Objects.requireNonNull(runStatistics, "Run statistics must not be null");
         Objects.requireNonNull(currentWave, "Current wave must not be null");
 
         setSpacing(12.0);
         setAlignment(Pos.CENTER_LEFT);
-        setMaxWidth(420.0);
+        setMaxWidth(460.0);
         setStyle(
                 "-fx-background-color: rgba(0, 0, 0, 0.88);"
                         + " -fx-padding: 16px;"
@@ -61,12 +64,7 @@ public final class RunInfoView extends VBox {
                         + " / " + experienceProgression.getExperienceForNextLevel()
         );
 
-        addSection(
-                "WEAPON",
-                "Damage: " + weaponStats.getDamage(),
-                "Cooldown: " + formatDecimal(weaponStats.getCooldownSeconds()) + " s",
-                "Projectile Speed: " + formatDecimal(weaponStats.getProjectileSpeed())
-        );
+        addWeapons(weapons);
 
         addSection(
                 "RUN",
@@ -76,6 +74,39 @@ public final class RunInfoView extends VBox {
         );
 
         addUpgrades(runStatistics.getChosenItems());
+    }
+
+    private void addWeapons(Map<WeaponType, Weapon> weapons) {
+        VBox section = new VBox(4.0);
+        section.getChildren().add(createSectionTitle("WEAPONS"));
+        if (weapons.isEmpty()) {
+            section.getChildren().add(createContentLabel("Nessuna"));
+        } else {
+            for (WeaponType type : WeaponType.values()) {
+                Weapon weapon = weapons.get(type);
+                if (weapon == null) {
+                    continue;
+                }
+                WeaponStats stats = weapon.getCurrentStats();
+                String evolutionStatus = weapon.isEvolved() ? "EVOLUTA" : "BASE";
+                section.getChildren().add(createContentLabel(
+                        type.name()
+                                + " Lv." + weapon.getLevel() + "/" + weapon.getMaxLevel()
+                                + " [" + evolutionStatus + "]\n"
+                                + "Damage: " + stats.getDamage()
+                                + " | Cooldown: " + formatDecimal(stats.getCooldownSeconds()) + " s"
+                                + " | Speed: " + formatDecimal(stats.getProjectileSpeed())
+                ));
+            }
+        }
+
+        ScrollPane scrollPane = new ScrollPane(section);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setMaxHeight(150.0);
+        scrollPane.setStyle(
+                "-fx-background: transparent; -fx-background-color: transparent;"
+        );
+        getChildren().add(scrollPane);
     }
 
     private void addSection(String title, String... lines) {
@@ -89,7 +120,7 @@ public final class RunInfoView extends VBox {
 
     private void addUpgrades(List<Item> chosenItems) {
         VBox section = new VBox(2.0);
-        section.getChildren().add(createSectionTitle("UPGRADES"));
+        section.getChildren().add(createSectionTitle("ITEMS"));
         if (chosenItems.isEmpty()) {
             section.getChildren().add(createContentLabel("Nessuno"));
         } else {
@@ -104,7 +135,7 @@ public final class RunInfoView extends VBox {
 
         ScrollPane scrollPane = new ScrollPane(section);
         scrollPane.setFitToWidth(true);
-        scrollPane.setMaxHeight(150.0);
+        scrollPane.setMaxHeight(110.0);
         scrollPane.setStyle(
                 "-fx-background: transparent; -fx-background-color: transparent;"
         );

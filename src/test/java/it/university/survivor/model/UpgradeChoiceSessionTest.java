@@ -1,5 +1,6 @@
 package it.university.survivor.model;
 
+import it.university.survivor.weapon.WeaponType;
 import org.junit.jupiter.api.Test;
 import java.util.HashSet;
 import java.util.List;
@@ -128,5 +129,32 @@ class UpgradeChoiceSessionTest {
         assertThrows(IllegalStateException.class, session::reroll);
     }
  }
+
+    @Test
+    void mixedSessionOffersTwoItemsAndOneWeapon() {
+        UpgradeChoiceSession session = new UpgradeChoiceSession(
+                new UpgradeCatalog(),
+                new Random(42),
+                List.of(new WeaponUpgradeChoice(WeaponType.SHOTGUN, 0, 5))
+        );
+
+        List<UpgradeOption> choices = session.getCurrentChoices();
+
+        assertAll(
+                () -> assertEquals(3, choices.size()),
+                () -> assertEquals(2, choices.stream().filter(UpgradeOption::isItem).count()),
+                () -> assertEquals(1, choices.stream().filter(UpgradeOption::isWeapon).count()),
+                () -> assertEquals(
+                        WeaponType.SHOTGUN,
+                        choices.stream()
+                                .filter(UpgradeOption::isWeapon)
+                                .findFirst()
+                                .orElseThrow()
+                                .weaponChoice()
+                                .weaponType()
+                )
+        );
+    }
+
 
 }
