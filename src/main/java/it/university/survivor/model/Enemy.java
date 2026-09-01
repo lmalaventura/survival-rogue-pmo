@@ -1,17 +1,26 @@
 package it.university.survivor.model;
 
-import it.university.survivor.model.enemy.EnemyType;
-
 import java.util.Objects;
 
+import it.university.survivor.model.enemy.EnemyType;
+
 public class Enemy {
+
+    private static final double RANGED_PREFERRED_DISTANCE = 250.0;
+    private static final double RANGED_DISTANCE_TOLERANCE = 50.0;
+    private static final double RANGED_ATTACK_COOLDOWN = 1.0;
 
     private Position position;
     private final Health health;
     private final double movementSpeed;
     private final EnemyType type;
+    private double rangedAttackCooldown;
 
-    public Enemy(Position position, int maxHealth, double movementSpeed) {
+    public Enemy(
+            Position position,
+            int maxHealth,
+            double movementSpeed
+    ) {
         this(
                 position,
                 maxHealth,
@@ -44,6 +53,7 @@ public class Enemy {
 
         this.health = new Health(maxHealth);
         this.movementSpeed = movementSpeed;
+        this.rangedAttackCooldown = 0.0;
     }
 
     void moveTo(Position newPosition) {
@@ -77,16 +87,59 @@ public class Enemy {
 
         double dx = targetPosition.x() - position.x();
         double dy = targetPosition.y() - position.y();
+        double distance = Math.hypot(dx, dy);
 
-        double magnitude = Math.hypot(dx, dy);
-
-        if (magnitude == 0.0) {
+        if (distance == 0.0) {
             return new Position(0.0, 0.0);
         }
 
+        if (type == EnemyType.RANGED) {
+            if (distance < RANGED_PREFERRED_DISTANCE
+                    - RANGED_DISTANCE_TOLERANCE) {
+                return new Position(
+                        -dx / distance,
+                        -dy / distance
+                );
+            }
+
+            if (distance <= RANGED_PREFERRED_DISTANCE
+                    + RANGED_DISTANCE_TOLERANCE) {
+                return new Position(0.0, 0.0);
+            }
+
+            return new Position(
+                    dx / distance,
+                    dy / distance
+            );
+        }
+
         return new Position(
-                dx / magnitude,
-                dy / magnitude
+                dx / distance,
+                dy / distance
+        );
+    }
+
+    public boolean canRequestRangedAttack() {
+        return type == EnemyType.RANGED
+                && rangedAttackCooldown <= 0.0;
+    }
+
+    public void requestRangedAttack() {
+        if (canRequestRangedAttack()) {
+            rangedAttackCooldown = RANGED_ATTACK_COOLDOWN;
+        }
+    }
+
+    public void updateRangedCooldown(double deltaTime) {
+        if (!Double.isFinite(deltaTime) || deltaTime < 0.0) {
+            throw new IllegalArgumentException(
+                    "Delta time must be finite and non-negative"
+            );
+        }
+
+        rangedAttackCooldown = Math.max(
+                0.0,
+                rangedAttackCooldown - deltaTime
         );
     }
 

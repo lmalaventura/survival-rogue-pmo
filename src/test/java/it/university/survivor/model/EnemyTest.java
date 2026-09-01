@@ -215,4 +215,114 @@ class EnemyTest {
                 )
         );
     }
+
+    @Test
+    void rangedEnemyShouldHaveRangedType() {
+        Enemy enemy = new Enemy(
+                new Position(0.0, 0.0),
+                80,
+                0.8,
+                EnemyType.RANGED
+        );
+
+        assertEquals(EnemyType.RANGED, enemy.getType());
+    }
+
+    @Test
+    void rangedEnemyShouldPreferToStayAtDistanceFromPlayer() {
+        Enemy enemy = new Enemy(
+                new Position(100.0, 0.0),
+                80,
+                0.8,
+                EnemyType.RANGED
+        );
+
+        Position direction = enemy.calculateDesiredDirection(
+                new Position(0.0, 0.0)
+        );
+
+        assertEquals(1.0, direction.x(), 0.0001);
+        assertEquals(0.0, direction.y(), 0.0001);
+    }
+
+    @Test
+    void rangedEnemyShouldNotMoveTowardsPlayerWhenAlreadyAtPreferredDistance() {
+        Enemy enemy = new Enemy(
+                new Position(300.0, 0.0),
+                80,
+                0.8,
+                EnemyType.RANGED
+        );
+
+        Position direction = enemy.calculateDesiredDirection(
+                new Position(0.0, 0.0)
+        );
+
+        assertEquals(0.0, direction.x(), 0.0001);
+        assertEquals(0.0, direction.y(), 0.0001);
+    }
+
+    @Test
+    void rangedEnemyShouldMoveAwayWhenTooCloseToPlayer() {
+        Enemy enemy = new Enemy(
+                new Position(50.0, 0.0),
+                80,
+                0.8,
+                EnemyType.RANGED
+        );
+
+        Position direction = enemy.calculateDesiredDirection(
+                new Position(0.0, 0.0)
+        );
+
+        assertEquals(1.0, direction.x(), 0.0001);
+        assertEquals(0.0, direction.y(), 0.0001);
+    }
+
+    @Test
+    void rangedEnemyShouldExposeAttackCooldown() {
+        Enemy enemy = new Enemy(
+                new Position(300.0, 0.0),
+                80,
+                0.8,
+                EnemyType.RANGED
+        );
+
+        assertTrue(enemy.canRequestRangedAttack());
+    }
+
+    @Test
+    void rangedEnemyShouldRespectAttackCooldown() {
+        Enemy enemy = new Enemy(
+                new Position(300.0, 0.0),
+                80,
+                0.8,
+                EnemyType.RANGED
+        );
+
+        assertTrue(enemy.canRequestRangedAttack());
+
+        enemy.requestRangedAttack();
+
+        assertFalse(enemy.canRequestRangedAttack());
+
+        enemy.updateRangedCooldown(1.0);
+
+        assertTrue(enemy.canRequestRangedAttack());
+    }
+
+    @Test
+    void rangedEnemyShouldRejectNegativeCooldownUpdate() {
+        Enemy enemy = new Enemy(
+                new Position(300.0, 0.0),
+                80,
+                0.8,
+                EnemyType.RANGED
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> enemy.updateRangedCooldown(-0.1)
+        );
+    }
 }
